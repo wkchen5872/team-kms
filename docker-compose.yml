@@ -1,0 +1,35 @@
+# Production-style topology. Point the *_URL/KEY env at your Supabase project
+# (cloud, or the local `supabase start` stack reachable from the containers).
+# ponytail: services read config from .env; no bundled Postgres — Supabase owns
+# the DB/Auth/Storage, matching the runtime architecture.
+services:
+  converter:
+    build:
+      context: .
+      dockerfile: apps/converter/Dockerfile
+    env_file: .env
+    ports: ["8002:8002"]
+
+  api:
+    build: { context: ., dockerfile: Dockerfile }
+    command: node apps/api/dist/index.js
+    env_file: .env
+    environment:
+      CONVERTER_URL: http://converter:8002
+    ports: ["8000:8000"]
+    depends_on: [converter]
+
+  mcp:
+    build: { context: ., dockerfile: Dockerfile }
+    command: node apps/mcp/dist/index.js
+    env_file: .env
+    ports: ["8001:8001"]
+
+  web:
+    build: { context: ., dockerfile: Dockerfile }
+    # ponytail: dev server avoids baking NEXT_PUBLIC_* at image build time.
+    # For a real deploy, build with those as build args and `next start`.
+    command: pnpm --filter @team-kms/web dev
+    env_file: .env
+    ports: ["3000:3000"]
+    depends_on: [api]

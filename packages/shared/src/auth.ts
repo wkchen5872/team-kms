@@ -1,0 +1,60 @@
+/**
+ * Supabase JWT verification, ported from llmwiki `mcp/auth.py` + `api/auth.py`.
+ *
+ * Supabase signs user session tokens with an asymmetric key (ES256) exposed at
+ * the project's JWKS endpoint. `jose`'s createRemoteJWKSet handles fetching,
+ * caching, and key-rotation/cooldown — replacing the hand-rolled JWKS cache in
+ * the Python `api/auth.py`.
+ */
+import { createRemoteJWKSet, jwtVerify, decodeJwt, type JWTPayload } from "jose";
+import { loadConfig } from "./config.js";
+
+export interface VerifiedUser {
+  userId: string;
+  claims: JWTPayload;
+}
+
+let jwks: ReturnType<typeof createRemoteJWKSet> | null = null;
+let expectedIssuer = "";
+
+function getJwks(): ReturnType<typeof createRemoteJWKSet> {
+  if (!jwks) {
+    const { SUPABASE_URL } = loadConfig();
+    const base = SUPABASE_URL.replace(/\/$/, "");
+    expectedIssuer = `${base}/auth/v1`;
+    jwks = createRemoteJWKSet(new URL(`${base}/auth/v1/.well-known/jwks.json`));
+  }
+  return jwks;
+}
+
+/** Verify a Supabase JWT; resolves to the user id (sub) and claims, or throws. */
+export async function verifyToken(token: string): Promise<VerifiedUser> {
+  const keys = getJwks();
+  const { payload } = await jwtVerify(token, keys, {
+    issuer: expectedIssuer,
+    audience: "authenticated",
+    algorithms: ["ES256", "RS256"],
+    clockTolerance: 30,
+    requiredClaims: ["exp", "iat", "sub", "aud", "iss"],
+  });
+  if (!payload.sub) throw new Error("Token missing sub claim");
+  return { userId: payload.sub, claims: payload };
+}
+
+/** Extract a bearer token from an Authorization header value, or null. */
+export function extractBearer(authHeader: string | null | undefined): string | null {
+  if (!authHeader || !authHeader.startsWith("Bearer ")) return null;
+  return authHeader.slice("Bearer ".length).trim() || null;
+}
+
+/** Verify the bearer token from an Authorization header; throws on missing/invalid. */
+export async function getCurrentUser(authHeader: string | null | undefined): Promise<VerifiedUser> {
+  const token = extractBearer(authHeader);
+  if (!token) throw new Error("Missing authorization header");
+  return verifyToken(token);
+}
+
+/** Decode without verifying — for logging/inspection only, never for auth. */
+export function unsafeDecode(token: string): JWTPayload {
+  return decodeJwt(token);
+}

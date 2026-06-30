@@ -1,0 +1,12 @@
+node_modules/
+dist/
+.next/
+*.tsbuildinfo
+coverage/
+.DS_Store
+*.log
+
+# Secrets / local env (.env.example IS committed)
+.env
+.env.local
+**/.env.local
