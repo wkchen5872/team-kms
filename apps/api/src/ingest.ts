@@ -12,6 +12,8 @@ const MIME: Record<string, string> = {
   pptx: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
   doc: "application/msword",
   ppt: "application/vnd.ms-powerpoint",
+  xls: "application/vnd.ms-excel",
+  xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 };
 
 export interface IngestInput {

@@ -14,7 +14,7 @@ import { officeToPdf } from "./office.js";
 import { downloadToFile } from "./download.js";
 import { validateSourceUrl } from "./ssrf.js";
 
-const OFFICE_EXTENSIONS = new Set(["doc", "docx", "ppt", "pptx"]);
+const OFFICE_EXTENSIONS = new Set(["doc", "docx", "ppt", "pptx", "xls", "xlsx"]);
 const PDF_EXTENSIONS = new Set(["pdf"]);
 const SUPPORTED = new Set([...OFFICE_EXTENSIONS, ...PDF_EXTENSIONS]);
 const MAX_SOURCE_BYTES = 200 * 1024 * 1024;
