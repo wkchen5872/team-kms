@@ -21,40 +21,22 @@ import {
   humanizeTitle,
   toDirPath,
 } from "./wiki.js";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { dirname, resolve } from "node:path";
 import { parseWikiLinks } from "@team-kms/shared";
 import { updateReferences, backlinksSummary } from "./references-sync.js";
 
-const GUIDE_TEXT = `# Team KMS Wiki — How It Works
-
-You are connected to a knowledge workspace. You compile and maintain a structured
-wiki from raw source documents.
-
-- **Raw Sources** (path \`/\`) — uploaded documents. Read-only source of truth.
-- **Compiled Wiki** (path \`/wiki/\`) — markdown pages YOU create and maintain.
-- **Tools** — create_knowledge_base, list_knowledge_bases, search, read, create, edit, append, delete, lint.
-
-## Wiki pages require YAML frontmatter
-\`\`\`yaml
----
-title: KV Cache Efficiency
-description: One-sentence summary of the page
-date: 2025-03-15
-tags: [inference, memory]
----
-\`\`\`
-
-## Cite sources with footnotes
-\`\`\`
-Transformers use self-attention[^1].
-
-[^1]: attention-paper.pdf, p.3
-\`\`\`
-Every write parses citations + wiki links into the reference graph; the response
-shows which pages reference the one you edited.
-
-## Available Knowledge Bases
-
-`;
+// The guide is a PROMPT, not code — it steers how Claude compiles the wiki, so
+// it lives in prompts/guide.md (repo root) where it can be tuned independently.
+function loadGuide(): string {
+  try {
+    return readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), "../../..", "prompts/guide.md"), "utf8");
+  } catch {
+    return "# Team KMS Wiki\n\nSources at `/`, wiki at `/wiki/`. Tools: search, read, create, edit, append, delete, lint.\n\n## Available Knowledge Bases\n";
+  }
+}
+const GUIDE_TEXT = loadGuide();
 
 const TEXT = (s: string) => s;
 
