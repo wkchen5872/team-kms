@@ -1,7 +1,13 @@
 # Team KMS 技術架構規格書 (Technical Architecture Specification)
 
+> ⚠️ **本文件已擱置** — 該文件描述的是舊架構（multimodal deployment 支援 local/self-hosted/Cloudflare Worker）。
+> 自 2026-07-01 起，系統已重構為 **Postgres/Supabase only + Claude-via-MCP** 架構，詳見 [`docs/architecture.md`](architecture.md)。
+> 本文件保留作為歷史參考；新功能開發應以新架構為準。
+
+---
+
 > **版本**：v0.1
-> **狀態**：草稿（持續更新中）
+> **狀態**：✅ 已完成但擱置（2026-07-01 架構重構後不再更新）
 > **建立日期**：2026-06-30
 >
 > **文件定位**：本文件聚焦於「系統要怎麼蓋」——環境、部署模式、模組行為模式（design pattern）的具體決策，作為後續模組開發的技術依據。與概念性的「為什麼這樣設計」（業務邏輯、矛盾與缺口分析）屬於不同文件。
