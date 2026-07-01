@@ -29,8 +29,8 @@ export interface DocumentListItem {
 
 /** A node in the wiki sidebar file tree (built client-side from paths). */
 export interface WikiNode {
-  name: string;
-  path: string;
-  doc?: DocumentListItem;
-  children: WikiNode[];
+  title: string;
+  path?: string;
+  docNumber?: number | null;
+  children?: WikiNode[];
 }
