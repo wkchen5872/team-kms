@@ -87,6 +87,48 @@ describe.skipIf(!SUPABASE_URL || !SERVICE)("REST API", () => {
     expect(afterRevoke.status).toBe(401);
   });
 
+  it("supports KB rename/delete, note create/move/delete, and search", async () => {
+    const jsonAuth = { "content-type": "application/json", ...authHeader() };
+    const kb = (await (
+      await app.request("/v1/knowledge-bases", { method: "POST", headers: jsonAuth, body: JSON.stringify({ name: "CRUD KB" }) })
+    ).json()) as { slug: string };
+
+    // rename KB (slug is unchanged)
+    const ren = await app.request(`/v1/knowledge-bases/${kb.slug}`, {
+      method: "PATCH",
+      headers: jsonAuth,
+      body: JSON.stringify({ name: "CRUD KB Renamed" }),
+    });
+    expect(ren.status).toBe(200);
+    expect(((await ren.json()) as { name: string }).name).toBe("CRUD KB Renamed");
+
+    // create a note with searchable content (returns a full document row)
+    const noteRes = await app.request(`/v1/knowledge-bases/${kb.slug}/documents/note`, {
+      method: "POST",
+      headers: jsonAuth,
+      body: JSON.stringify({ filename: "vorlon-notes.md", path: "/", content: "The vorlon consensus stabilized across sectors. ".repeat(6) }),
+    });
+    expect(noteRes.status).toBe(201);
+    const note = (await noteRes.json()) as { id: string; status: string };
+    expect(note.status).toBe("ready"); // full listDocuments-shaped row
+
+    // move it into a folder
+    const mv = await app.request(`/v1/documents/${note.id}`, { method: "PATCH", headers: jsonAuth, body: JSON.stringify({ path: "/folder/" }) });
+    expect(mv.status).toBe(200);
+    expect(((await mv.json()) as { path: string }).path).toBe("/folder/");
+
+    // search finds it
+    const search = (await (
+      await app.request(`/v1/knowledge-bases/${kb.slug}/search?q=vorlon`, { headers: authHeader() })
+    ).json()) as { results: { filename: string }[] };
+    expect(search.results.some((r) => r.filename === "vorlon-notes.md")).toBe(true);
+
+    // delete note, then delete KB
+    expect((await app.request(`/v1/documents/${note.id}`, { method: "DELETE", headers: authHeader() })).status).toBe(204);
+    expect((await app.request(`/v1/knowledge-bases/${kb.slug}`, { method: "DELETE", headers: authHeader() })).status).toBe(204);
+    expect((await app.request(`/v1/knowledge-bases/${kb.slug}/documents`, { headers: authHeader() })).status).toBe(404);
+  });
+
   it("uploads a markdown file and reads its content", async () => {
     const kb = (await (
       await app.request("/v1/knowledge-bases", {

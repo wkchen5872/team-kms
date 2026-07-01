@@ -114,20 +114,35 @@ export class PostgresVaultFS {
   }
 
   // ── Knowledge bases ──────────────────────────────────────────────
-  async resolveKb(slug: string): Promise<KnowledgeBaseRow | null> {
+  /** Resolve a KB by slug OR id (UUID) — the web passes either. */
+  async resolveKb(slugOrId: string): Promise<KnowledgeBaseRow | null> {
     return scopedQueryRow<KnowledgeBaseRow>(
       this.userId,
-      "SELECT id, name, slug FROM knowledge_bases WHERE slug = $1 AND user_id = $2",
-      [slug, this.userId],
+      "SELECT id, name, slug FROM knowledge_bases WHERE (slug = $1 OR id::text = $1) AND user_id = $2",
+      [slugOrId, this.userId],
     );
   }
 
   async listKnowledgeBases(): Promise<KnowledgeBaseRow[]> {
     return scopedQuery<KnowledgeBaseRow>(
       this.userId,
-      "SELECT name, slug, created_at FROM knowledge_bases WHERE user_id = $1 ORDER BY created_at DESC",
+      "SELECT id, name, slug, created_at FROM knowledge_bases WHERE user_id = $1 ORDER BY created_at DESC",
       [this.userId],
     );
+  }
+
+  async renameKnowledgeBase(id: string, name: string): Promise<KnowledgeBaseRow | null> {
+    // knowledge_bases has only a SELECT RLS policy → service-role, scoped by user_id.
+    return serviceQueryRow<KnowledgeBaseRow>(
+      "UPDATE knowledge_bases SET name = $1, updated_at = now() WHERE id = $2 AND user_id = $3 " +
+        "RETURNING id, name, slug",
+      [name, id, this.userId],
+    );
+  }
+
+  async deleteKnowledgeBase(id: string): Promise<number> {
+    // Cascade removes documents/chunks/pages/references.
+    return serviceExecute("DELETE FROM knowledge_bases WHERE id = $1 AND user_id = $2", [id, this.userId]);
   }
 
   async createKnowledgeBase(name: string, description?: string | null): Promise<KnowledgeBaseRow> {
@@ -357,10 +372,49 @@ export class PostgresVaultFS {
   async listDocuments(kbId: string): Promise<DocumentRow[]> {
     return scopedQuery<DocumentRow>(
       this.userId,
-      "SELECT id, filename, title, path, file_type, tags, page_count, date, updated_at " +
-        "FROM documents WHERE knowledge_base_id = $1 AND NOT archived AND user_id = $2 " +
-        "AND kind <> 'asset' ORDER BY path, filename",
+      "SELECT d.id, d.filename, d.title, d.path, d.file_type, d.kind, d.tags, d.status, " +
+        "d.document_number, d.version, d.sort_order, d.metadata, d.file_size, d.page_count, " +
+        "d.date, d.created_at, d.updated_at, dr.error_message " +
+        "FROM documents d LEFT JOIN document_raw dr ON dr.document_id = d.id " +
+        "WHERE d.knowledge_base_id = $1 AND NOT d.archived AND d.user_id = $2 " +
+        "AND d.kind <> 'asset' ORDER BY d.path, d.filename",
       [kbId, this.userId],
+    );
+  }
+
+  /** Move (change path) — targeted UPDATE, not updateDocument (which re-chunks).
+   *  documents has only a SELECT RLS policy → writes go through service-role, scoped by user_id. */
+  async moveDocument(docId: string, path: string): Promise<{ id: string; filename: string; path: string } | null> {
+    return serviceQueryRow<{ id: string; filename: string; path: string }>(
+      "UPDATE documents SET path = $1, updated_at = now() WHERE id = $2 AND user_id = $3 " +
+        "RETURNING id, filename, path",
+      [path, docId, this.userId],
+    );
+  }
+
+  async renameDocument(docId: string, title: string): Promise<{ id: string; filename: string; path: string } | null> {
+    return serviceQueryRow<{ id: string; filename: string; path: string }>(
+      "UPDATE documents SET title = $1, updated_at = now() WHERE id = $2 AND user_id = $3 " +
+        "RETURNING id, filename, path",
+      [title, docId, this.userId],
+    );
+  }
+
+  /** Create a markdown note/folder from the web; returns a full listDocuments-shaped row. */
+  async createNote(
+    kbId: string,
+    opts: { filename: string; path: string; title?: string; content?: string },
+  ): Promise<DocumentRow | null> {
+    const title = opts.title ?? opts.filename.replace(/\.[^.]+$/, "");
+    const doc = await this.createDocument(kbId, opts.filename, title, opts.path, "md", opts.content ?? "", []);
+    return scopedQueryRow<DocumentRow>(
+      this.userId,
+      "SELECT d.id, d.filename, d.title, d.path, d.file_type, d.kind, d.tags, d.status, " +
+        "d.document_number, d.version, d.sort_order, d.metadata, d.file_size, d.page_count, " +
+        "d.date, d.created_at, d.updated_at, dr.error_message " +
+        "FROM documents d LEFT JOIN document_raw dr ON dr.document_id = d.id " +
+        "WHERE d.id = $1 AND d.user_id = $2",
+      [doc.id, this.userId],
     );
   }
 

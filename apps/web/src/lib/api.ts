@@ -1,37 +1,43 @@
-"use client";
-import { supabase } from "./supabase";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const WS_URL = API_URL.replace(/^http/, "ws");
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+/** Thrown by apiFetch on non-2xx responses. Callers can branch on `.status`. */
+export class ApiError extends Error {
+  status: number;
+  detail: unknown;
+  constructor(status: number, message: string, detail: unknown = null) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+    this.detail = detail;
+  }
+}
 
-export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-  const res = await fetch(`${API_URL}${path}`, {
-    ...init,
-    headers: {
-      ...(init.body && !(init.body instanceof FormData) ? { "content-type": "application/json" } : {}),
-      ...(session ? { authorization: `Bearer ${session.access_token}` } : {}),
-      ...init.headers,
-    },
-  });
-  if (!res.ok) throw new Error(`${path} → ${res.status}`);
+export function isApiError(err: unknown): err is ApiError {
+  return err instanceof ApiError;
+}
+
+export async function apiFetch<T>(path: string, token: string, options?: RequestInit): Promise<T> {
+  const { headers: extraHeaders, ...rest } = options ?? {};
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    ...(extraHeaders as Record<string, string>),
+  };
+  if (token) headers.Authorization = `Bearer ${token}`;
+
+  const res = await fetch(`${API_URL}${path}`, { ...rest, headers });
+  if (!res.ok) {
+    const body = (await res.json().catch(() => ({}))) as { error?: string; detail?: string };
+    const message = body.detail ?? body.error ?? `API error: ${res.status}`;
+    throw new ApiError(res.status, message, body);
+  }
+  if (res.status === 204) return undefined as T;
   return res.json() as Promise<T>;
 }
 
-export interface KnowledgeBase {
-  id: string;
-  name: string;
-  slug: string;
+/** WebSocket URL for real-time document updates (token passed as query param). */
+export function getDocumentsWsUrl(kbId: string, token: string): string {
+  return `${WS_URL}/v1/ws/kb/${kbId}?token=${encodeURIComponent(token)}`;
 }
-export interface DocumentMeta {
-  id: string;
-  filename: string;
-  title: string | null;
-  path: string;
-  file_type: string;
-}
-export interface GraphData {
-  nodes: (DocumentMeta & { id: string })[];
-  edges: { source_document_id: string; target_document_id: string; reference_type: string }[];
-}
+
+export type { KnowledgeBase, DocumentListItem, WikiNode } from "./types";

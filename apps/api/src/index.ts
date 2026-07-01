@@ -9,6 +9,7 @@ import { serve } from "@hono/node-server";
 import { WebSocketServer } from "ws";
 import {
   PostgresVaultFS,
+  DuplicateDocumentError,
   s3FromConfig,
   verifyToken,
   extractBearer,
@@ -34,6 +35,11 @@ import {
 
 type Vars = { userId: string; fs: PostgresVaultFS };
 export const app = new Hono<{ Variables: Vars }>();
+
+/** Postgres unique-violation (23505) — used for rename/move 409s. */
+function isUnique(err: unknown): boolean {
+  return typeof err === "object" && err !== null && (err as { code?: string }).code === "23505";
+}
 
 // CORS for the web app. Registered first so OPTIONS preflight is answered
 // before the auth middleware. exposeHeaders lets the browser read the TUS
@@ -135,8 +141,114 @@ app.get("/v1/knowledge-bases/:slug/graph", async (c) => {
   const fs = c.get("fs");
   const kb = await fs.resolveKb(c.req.param("slug"));
   if (!kb) return c.json({ error: "Knowledge base not found" }, 404);
-  const [nodes, edges] = await Promise.all([fs.listDocuments(kb.id), fs.listReferences(kb.id)]);
+  const [docs, refs] = await Promise.all([fs.listDocuments(kb.id), fs.listReferences(kb.id)]);
+  // Reshape for the ported GraphViewer: nodes carry source_kind, edges are {source,target,type,page}.
+  const nodes = docs.map((d) => ({ ...d, source_kind: d.kind === "wiki" ? "wiki" : "source" }));
+  const edges = refs.map((r) => ({
+    source: r.source_document_id,
+    target: r.target_document_id,
+    type: r.reference_type,
+    page: r.page,
+  }));
   return c.json({ nodes, edges });
+});
+
+// ── KB rename / delete (feature 8) ────────────────────────────────
+app.patch("/v1/knowledge-bases/:slug", async (c) => {
+  const fs = c.get("fs");
+  const kb = await fs.resolveKb(c.req.param("slug"));
+  if (!kb) return c.json({ error: "Knowledge base not found" }, 404);
+  const body = (await c.req.json().catch(() => ({}))) as { name?: string };
+  if (!body.name?.trim()) return c.json({ error: "name is required" }, 400);
+  try {
+    const updated = await fs.renameKnowledgeBase(kb.id as string, body.name.trim());
+    return c.json(updated);
+  } catch (err) {
+    if (isUnique(err)) return c.json({ error: "A knowledge base with that name already exists" }, 409);
+    throw err;
+  }
+});
+
+app.delete("/v1/knowledge-bases/:slug", async (c) => {
+  const fs = c.get("fs");
+  const kb = await fs.resolveKb(c.req.param("slug"));
+  if (!kb) return c.json({ error: "Knowledge base not found" }, 404);
+  await fs.deleteKnowledgeBase(kb.id as string);
+  return c.body(null, 204);
+});
+
+// ── Full-text search (functional gap) ─────────────────────────────
+app.get("/v1/knowledge-bases/:slug/search", async (c) => {
+  const fs = c.get("fs");
+  const kb = await fs.resolveKb(c.req.param("slug"));
+  if (!kb) return c.json({ error: "Knowledge base not found" }, 404);
+  const q = c.req.query("q")?.trim();
+  if (!q) return c.json({ results: [] });
+  const limit = Math.min(Number(c.req.query("limit") ?? 20) || 20, 50);
+  return c.json({ results: await fs.searchChunks(kb.id, q, limit) });
+});
+
+// ── Create note/folder (feature 3) ────────────────────────────────
+app.post("/v1/knowledge-bases/:slug/documents/note", async (c) => {
+  const fs = c.get("fs");
+  const kb = await fs.resolveKb(c.req.param("slug"));
+  if (!kb) return c.json({ error: "Knowledge base not found" }, 404);
+  const body = (await c.req.json().catch(() => ({}))) as {
+    filename?: string;
+    path?: string;
+    title?: string;
+    content?: string;
+  };
+  if (!body.filename?.trim()) return c.json({ error: "filename is required" }, 400);
+  try {
+    const doc = await fs.createNote(kb.id, {
+      filename: body.filename.trim(),
+      path: body.path?.trim() || "/",
+      title: body.title,
+      content: body.content,
+    });
+    return c.json(doc, 201);
+  } catch (err) {
+    if (err instanceof DuplicateDocumentError) return c.json({ error: "Already exists at that path" }, 409);
+    throw err;
+  }
+});
+
+// ── Document move / rename / delete (feature 3) ───────────────────
+app.patch("/v1/documents/:id", async (c) => {
+  const fs = c.get("fs");
+  const id = c.req.param("id");
+  const body = (await c.req.json().catch(() => ({}))) as { path?: string; title?: string };
+  try {
+    if (typeof body.path === "string") {
+      const moved = await fs.moveDocument(id, body.path);
+      if (!moved) return c.json({ error: "Document not found" }, 404);
+      return c.json(moved);
+    }
+    if (typeof body.title === "string") {
+      const renamed = await fs.renameDocument(id, body.title);
+      if (!renamed) return c.json({ error: "Document not found" }, 404);
+      return c.json(renamed);
+    }
+    return c.json({ error: "path or title is required" }, 400);
+  } catch (err) {
+    if (isUnique(err)) return c.json({ error: "A document already exists at that path" }, 409);
+    throw err;
+  }
+});
+
+app.delete("/v1/documents/:id", async (c) => {
+  const n = await c.get("fs").archiveDocuments([c.req.param("id")]);
+  if (!n) return c.json({ error: "Document not found" }, 404);
+  return c.body(null, 204);
+});
+
+app.get("/v1/documents/:id/download", async (c) => {
+  const fs = c.get("fs");
+  const doc = await fs.getDocumentById(c.req.param("id"));
+  if (!doc) return c.json({ error: "Document not found" }, 404);
+  const key = `${c.get("userId")}/${doc.id}/source.${doc.file_type}`;
+  return c.redirect(await s3FromConfig().generatePresignedGet(key));
 });
 
 app.get("/v1/documents/:id/content", async (c) => {

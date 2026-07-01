@@ -1,3 +1,88 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* shadcn token system (ported from llmwiki, pre-v4 form: HSL vars + class dark). */
+:root {
+  --sidebar-width: 14rem;
+  --radius: 1rem;
+
+  /* Light theme — warm paper */
+  --background: 30 3% 96%;
+  --foreground: 20 14% 4%;
+  --card: 0 0% 100%;
+  --card-foreground: 20 14% 10%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 20 14% 10%;
+  --primary: 24 10% 10%;
+  --primary-foreground: 60 9% 98%;
+  --secondary: 30 6% 96%;
+  --secondary-foreground: 20 14% 10%;
+  --muted: 30 6% 96%;
+  --muted-foreground: 25 5% 45%;
+  --accent: 30 6% 94%;
+  --accent-foreground: 20 14% 10%;
+  --destructive: 0 84.2% 60.2%;
+  --destructive-foreground: 60 9% 98%;
+  --border: 24 6% 83%;
+  --input: 24 6% 83%;
+  --ring: 25 5% 45%;
+  --accent-blue: 220 40% 50%;
+  --sidebar: 30 3% 96%;
+  --sidebar-foreground: 20 14% 4%;
+  --sidebar-primary: 24 10% 10%;
+  --sidebar-primary-foreground: 60 9% 98%;
+  --sidebar-accent: 30 6% 94%;
+  --sidebar-accent-foreground: 20 14% 10%;
+  --sidebar-border: 24 6% 90%;
+  --sidebar-ring: 25 5% 45%;
+}
+
+.dark {
+  /* Dark theme — lamp light (warm darks) */
+  --background: 20 14% 4%;
+  --foreground: 40 10% 90%;
+  --card: 20 12% 8%;
+  --card-foreground: 40 10% 90%;
+  --popover: 20 12% 8%;
+  --popover-foreground: 40 10% 90%;
+  --primary: 40 10% 90%;
+  --primary-foreground: 20 14% 4%;
+  --secondary: 20 10% 10%;
+  --secondary-foreground: 40 10% 90%;
+  --muted: 20 10% 10%;
+  --muted-foreground: 24 5% 55%;
+  --accent: 20 10% 12%;
+  --accent-foreground: 40 10% 90%;
+  --destructive: 0 62.8% 30.6%;
+  --destructive-foreground: 40 10% 90%;
+  --border: 20 6% 16%;
+  --input: 20 6% 16%;
+  --ring: 24 5% 55%;
+  --accent-blue: 220 35% 55%;
+  --sidebar: 20 14% 3%;
+  --sidebar-foreground: 40 10% 90%;
+  --sidebar-primary: 40 10% 90%;
+  --sidebar-primary-foreground: 20 14% 4%;
+  --sidebar-accent: 20 10% 12%;
+  --sidebar-accent-foreground: 40 10% 90%;
+  --sidebar-border: 20 6% 16%;
+  --sidebar-ring: 24 5% 55%;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
