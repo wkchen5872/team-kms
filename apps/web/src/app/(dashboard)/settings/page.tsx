@@ -71,7 +71,7 @@ export default function SettingsPage() {
   }
 
   return (
-    <main className="mx-auto mt-10 w-full max-w-2xl px-6">
+    <main className="mx-auto h-full w-full max-w-2xl overflow-y-auto px-6 pt-10">
       <Link href="/wikis" className="mb-6 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
         <ArrowLeft className="size-4" /> Back
       </Link>

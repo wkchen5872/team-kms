@@ -2,7 +2,8 @@
 
 import * as React from "react";
 
-/** Minimal shell wrapper. Expanded in P4 (sidebar + upload progress panel). */
+/** Fixed viewport-height shell so the workspace (sidebar + main) manages its own
+ *  internal scrolling; scrollable pages (KB list, settings) opt into overflow. */
 export function AppShell({ children }: { children: React.ReactNode }) {
-  return <div className="min-h-screen bg-background text-foreground">{children}</div>;
+  return <div className="h-screen overflow-hidden bg-background text-foreground">{children}</div>;
 }

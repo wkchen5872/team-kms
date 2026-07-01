@@ -4,79 +4,93 @@
 
 ## 職責
 
-`apps/web` 是 Next.js 14（App Router）前端：Supabase Auth 登入、知識庫瀏覽、多檔上傳、
-Markdown/PDF 檢視、知識圖譜視覺化。前端不直連資料庫，所有資料經 `apps/api` 的 REST/
-WebSocket 介面存取。
+`apps/web` 是 Next.js 14（App Router）前端：Supabase Auth 登入/登出、知識庫 CRUD、
+檔案網格與 wiki file tree 瀏覽、多檔上傳、Markdown/PDF/圖片/試算表檢視、note 編輯、
+內容搜尋、可導航的知識圖譜、帳號設定（含 API keys 管理、dark mode）。前端不直連
+資料庫，所有資料經 `apps/api` 的 REST/WebSocket 介面存取。UI 移植自
+[lucasastorian/llmwiki](https://github.com/lucasastorian/llmwiki)（React-18 相容子集，
+不升 Tailwind v4）。
 
 ## 路由（`app/`）
 
+`(dashboard)` route group 套 `AuthProvider` + `AppShell`（固定視窗高度、內部捲動）。
+
 | 路徑 | 檔案 | 說明 |
 |---|---|---|
-| `/` | `app/page.tsx` | 認證守衛：檢查 Supabase session，登入則導向 `/wikis`，否則導向 `/login` |
-| `/login` | `app/login/page.tsx` | Email/password 登入表單，呼叫 `supabase.auth.signInWithPassword()` |
-| `/wikis` | `app/wikis/page.tsx` | 知識庫列表（`GET /v1/knowledge-bases`） |
-| `/wikis/:slug` | `app/wikis/[slug]/page.tsx` | 主要工作頁：側欄（導覽/上傳/wiki 頁/來源清單）+ 內容區（Markdown 或 PDF），多檔上傳 UI |
-| `/wikis/:slug/graph` | `app/wikis/[slug]/graph/page.tsx` | 知識圖譜視覺化（`GET /v1/knowledge-bases/:slug/graph`） |
+| `/` | `app/page.tsx` | 認證守衛：有 session 導向 `/wikis`，否則 `/login` |
+| `/login` | `app/login/page.tsx` | Email/password 登入，`supabase.auth.signInWithPassword()` |
+| `/wikis` | `app/(dashboard)/wikis/page.tsx` | 知識庫列表（`GET /v1/knowledge-bases`） |
+| `/wikis/:slug/[[...path]]` | `app/(dashboard)/wikis/[slug]/[[...path]]/page.tsx` | 主工作頁（optional catch-all）：一頁涵蓋 `/wikis/:slug`、`/files/...`、`/graph`，並用 `?doc=` 同步開啟的文件 |
+| `/settings` | `app/(dashboard)/settings/page.tsx` | 帳號設定：dark mode 切換、API keys 建立（一次性顯示）/列表/撤銷 |
 
-`app/layout.tsx` 為 root layout，設定 metadata 與全域樣式。
+`app/layout.tsx` 為 root layout，掛 `ThemeProvider`（next-themes，class 模式）+ `Toaster`（sonner）。
 
 ## 元件（`components/`）
 
-| 元件 | 職責 |
-|---|---|
-| `WikiContent.tsx` | 用 `react-markdown` 渲染 Markdown；攔截 `language-mermaid` code block，交給 `MermaidBlock` 渲染 |
-| `MermaidBlock.tsx` | 動態載入 `mermaid`，呼叫 `mermaid.render()`（neutral 主題）產生 SVG；渲染失敗則退回顯示原始 chart 文字 |
-| `PdfViewer.tsx` | 抓取 `/v1/documents/:id/source-url` presigned URL，用瀏覽器原生 `<embed type="application/pdf">` 呈現（未用 pdf.js） |
-| `GraphViewer.tsx` | 用 `react-force-graph-2d`（`ssr: false` 動態載入）呈現力導向圖；把 API 的 `GraphData` 轉為 nodes（`name`=path+filename，`type`=wiki/source）與 links（含方向箭頭），依 `type` 自動配色 |
+| 區塊 | 元件 | 職責 |
+|---|---|---|
+| `kb/` | `KBDetail` | 工作頁殼：整合 sidenav + 內容區，管理 files/wiki/graph view 切換與 URL 同步、文件 CRUD（note/folder/move/rename/delete）、上傳 |
+| `kb/` | `KBSidenav` | 左側欄：來源清單、wiki file tree（巢狀展開 + active 高亮）、上傳、底部帳號選單 |
+| `kb/` | `FilesGrid` + `DocViewers` | 檔案網格（依 `file_type` 顯示 lucide icon、name/date/type 排序、搜尋、資料夾）＋各型檢視器（PDF `<embed>`、圖片、試算表、note textarea、processing/failed 狀態） |
+| `kb/` | `GraphViewer` | `react-force-graph-2d`（`ssr:false`）力導向圖，**點節點導航**（`onNodeClick`，path 為 null 不崩） |
+| `kb/` | `WikiSelector` / `ContextMenus` / `SelectionActionBar` | KB 下拉（view all / rename / delete / create）、右鍵選單、多選操作列 |
+| `kb/` | `SidenavUserMenu` | 帳號選單：Settings 連結、Dark mode、Sign Out（`supabase.auth.signOut()`） |
+| `kb/` | `NoteEditor` | raw markdown 編輯（textarea，非 tiptap），`PATCH /v1/documents/:id {content}` |
+| `wiki/` | `WikiContent` / `MermaidBlock` / `DiagramViewer` | wiki 頁 markdown 渲染（含 citation/graph 連結）＋ mermaid（katex 已移除） |
+| `layout/` | `AppShell` | `h-screen overflow-hidden` 外殼，讓 sidebar 固定高度、內容區自行捲動 |
+| `auth/` | `AuthProvider` | 從 Supabase session 取 token 灌入 `useUserStore`，作為元件與後端的橋接層 |
+| `ui/` | shadcn primitives | button/dialog/dropdown-menu/popover/context-menu/command/input/label/badge/skeleton/sonner/kbd/textarea… |
 
-## `lib/`
+## 狀態與資料層（`stores/` `hooks/` `lib/`）
 
-- **`api.ts`**：
-  - `apiFetch<T>(path, init)` — 通用 fetch wrapper：取 Supabase session token、
-    設定 `Authorization: Bearer` 標頭、非 FormData 時自動推斷
-    `content-type: application/json`、非 2xx 時 throw。讀取 `NEXT_PUBLIC_API_URL`
-    （預設 `http://localhost:8000`）。
-  - 匯出型別：`KnowledgeBase { id, name, slug }`、
-    `DocumentMeta { id, filename, title, path, file_type }`、
-    `GraphData { nodes: DocumentMeta[], edges: {...} }`。
-- **`supabase.ts`**：以 `NEXT_PUBLIC_SUPABASE_URL` + `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-  初始化 Supabase client，`persistSession: true`（localStorage）、`autoRefreshToken: true`。
+- **`lib/api.ts`**：`apiFetch<T>(path, token, init?)` — **3 引數**（token 由呼叫端從
+  `useUserStore` 取），設 `Authorization: Bearer`、非 FormData 自動帶 JSON content-type、
+  非 2xx throw `ApiError`。讀 `NEXT_PUBLIC_API_URL`（預設 `http://localhost:8000`）。
+  另有 `getDocumentsWsUrl(kbId, token)` → `…/v1/ws/kb/:kbId?token=`。
+- **`stores/`**（zustand）：`useUserStore`（session token）、`useKBStore`（知識庫列表）、
+  `useUploadStore`（上傳進度）。
+- **`hooks/useKBDocuments.ts`**：載入文件清單 + 訂閱 WebSocket 即時更新。
+- **`lib/supabase.ts`**：以 `NEXT_PUBLIC_SUPABASE_URL` + `_ANON_KEY` 初始化 client
+  （`persistSession` + `autoRefreshToken`），全域 singleton。
 
 ## 認證流程
 
-1. App 啟動時初始化 Supabase client，自動從 localStorage 還原 session。
-2. `/login` 提交 email/password → `supabase.auth.signInWithPassword()` → 成功後 JWT
-   session 存於 localStorage → 導向 `/wikis`。
-3. Session 過期前 Supabase client 自動 refresh token。
-4. 每次 `apiFetch()` 呼叫都會即時取得目前 session 的 `access_token`，附加為
-   `Authorization: Bearer` 標頭；後端依此做 JWT 驗證 + RLS 範圍限定。
+1. App 啟動初始化 Supabase client，自 localStorage 還原 session。
+2. `/login` 提交 → `signInWithPassword()` → JWT 存 localStorage → 導向 `/wikis`。
+3. `AuthProvider` 監聽 session，把 `access_token` 寫入 `useUserStore`。
+4. 每次 `apiFetch(path, token, …)` 附 `Authorization: Bearer`；後端做 JWT 驗證 + RLS 範圍限定。
+5. `SidenavUserMenu` → Sign Out：`supabase.auth.signOut()` 清 session → 回 `/login`。
+   > 密碼由 Supabase Auth（`auth.users`）管理，`public.users` 不存密碼；重設走 Supabase Studio 或 admin API。
 
-## 多檔上傳流程
+## 多檔上傳流程（TUS）
 
-- UI：`<input type="file" multiple>`，上傳中 disable。
-- **依序（非平行）**處理每個檔案：
-  1. 建立 `FormData`，欄位 `"file"`。
-  2. `POST /v1/knowledge-bases/:slug/upload`。
-  3. 更新進度顯示（`N/M`）。
-  4. 失敗則收集檔名，最後統一提示。
-- 全部完成後呼叫 `refreshDocs()` 更新文件清單。
-- 未使用 TUS 協議（後端雖支援，但前端目前走簡單 multipart，依序處理以配合後端解析佇列的併發上限）。
+- 走 **TUS 1.0 續傳協議**（`tus-js-client`）打 `/v1/files`，metadata 帶 `{filename, kb: slug}`。
+- 上傳完成後端非同步 ingest（解析佇列）；前端經 WebSocket 收到 `processing → ready/failed` 更新。
+- 上傳暫落知識庫根目錄（metadata 尚未帶 path）。
+
+## 下載流程
+
+- 瀏覽器導航帶不了 `Authorization` header，且 presigned S3 URL 跨來源會讓 `download` 屬性失效。
+- 因此 `FilesGrid` 用 token 打 `/v1/documents/:id/source-url` 取 presigned URL → `fetch` 成
+  **同源 blob** → `<a download=原檔名>` 觸發（PDF 也會強制下載而非 inline 開啟）。
+- note/webclip 無 `source.*` 物件，改抓 `/content` 的 markdown 存成 `.md`。
 
 ## 知識圖譜視覺化資料流
 
 ```
 GET /v1/knowledge-bases/:slug/graph
-  → { nodes: [{ id, filename, title, path, file_type }],
-      edges: [{ source_document_id, target_document_id, reference_type }] }
-  → GraphViewer 轉換為 react-force-graph-2d 格式
-  → nodes: { id, name: "{path}{filename}", type: "wiki"|"source" }
-  → links: { source, target, kind: reference_type }
-  → 力導向佈局，依 type 自動配色，含方向箭頭
+  → { nodes: [{ id, …, source_kind: "wiki"|"source" }],
+      edges: [{ source, target, type, page }] }
+  → GraphViewer 轉為 react-force-graph-2d 格式（依 source_kind 配色、方向箭頭）
+  → 點節點 → onNodeClick 導航到該文件（path 為 null 時安全處理）
 ```
 
 ## 依賴關係
 
-- 依賴 `apps/api`（唯一的資料來源，經 REST + WebSocket）。
+- 依賴 `apps/api`（唯一資料來源，經 REST + WebSocket）。
 - 依賴 Supabase Auth（前端直連，取得/刷新 JWT）。
-- 關鍵套件：`next@^14.2.15`、`react@^18.3.1`、`@supabase/supabase-js@^2.45.4`、
-  `react-markdown@^9.0.1`、`mermaid@^11.4.0`、`react-force-graph-2d@^1.25.5`。
+- 維持 **React 18 / Next 14 / Tailwind v3**（pre-v4 shadcn token 系統：`globals.css` HSL 變數
+  + config `hsl(var(--x))` 映射 + `tailwindcss-animate`）。
+- 關鍵套件：`next@^14`、`react@^18`、`@supabase/supabase-js`、`zustand`、`next-themes`、
+  `lucide-react`、`cmdk`、`framer-motion`、Radix UI、`sonner`、`tus-js-client`、
+  `react-markdown`、`mermaid`、`react-force-graph-2d`。

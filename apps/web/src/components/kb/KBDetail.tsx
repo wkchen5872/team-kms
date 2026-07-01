@@ -526,16 +526,22 @@ export function KBDetail({ kbId, kbSlug, kbName, viewMode, routeFilesPath }: Pro
   const handleCreateNote = async (targetPath: string = '/') => {
     const t = getToken()
     if (!t || !userId) return
+    // Notes are unique per (path, filename); pick the first free "Untitled N.md"
+    // so a second note at the same path doesn't 409.
+    const taken = new Set(documents.filter((d) => (d.path || '/') === targetPath).map((d) => d.filename))
+    let filename = 'Untitled.md'
+    for (let n = 2; taken.has(filename); n++) filename = `Untitled ${n}.md`
     try {
       const data = await apiFetch<DocumentListItem>(`/v1/knowledge-bases/${kbId}/documents/note`, t, {
         method: 'POST',
-        body: JSON.stringify({ filename: 'Untitled.md', path: targetPath }),
+        body: JSON.stringify({ filename, path: targetPath }),
       })
       setDocuments((prev) => [data, ...prev])
-      if (!filesViewActive) {
-        setActiveView('files')
-        navigateToView('files')
-      }
+      // Open the new note straight into the editor — otherwise there's no
+      // feedback and it looks like nothing happened.
+      if (!filesViewActive) navigateToView('files')
+      setActiveSourceDocId(data.id)
+      setActiveView('doc')
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to create note')
     }

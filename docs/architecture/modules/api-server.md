@@ -26,13 +26,22 @@
 | POST / GET / DELETE | `/v1/api-keys[/:id]` | API key 建立/列表/撤銷 |
 | GET | `/v1/me` | 使用者資訊 |
 | GET / POST | `/v1/knowledge-bases` | 知識庫列表/建立 |
+| PATCH / DELETE | `/v1/knowledge-bases/:slug` | 知識庫更名（UNIQUE→409）/ 刪除（service-role，cascade） |
 | GET | `/v1/knowledge-bases/:slug/documents` | 文件列表 |
 | GET | `/v1/knowledge-bases/:slug/graph` | 知識圖譜（nodes + edges） |
+| GET | `/v1/knowledge-bases/:slug/search?q=&limit=` | 全文內容搜尋（包 `searchChunks`） |
+| POST | `/v1/knowledge-bases/:slug/documents/note` | 建 note / 資料夾（`createNote`，回完整 row） |
 | GET | `/v1/documents/:id/content` | 文件內容 |
+| PATCH | `/v1/documents/:id` | 改內容（`{content}`）/ 移動（`{path}`）/ 更名（`{title}`） |
+| DELETE | `/v1/documents/:id` | 軟刪（`archived`）→204 |
 | GET | `/v1/documents/:id/source-url` | 原始檔案 presigned S3 URL |
+| GET | `/v1/documents/:id/download` | 同上的別名（redirect 到 presigned） |
 | POST | `/v1/knowledge-bases/:slug/upload` | Multipart 單檔上傳（同步 ingest） |
 | POST / HEAD / GET / PATCH | `/v1/files[/:id]` | TUS 1.0 續傳上傳（單檔上限 200MB） |
 | WS | `/v1/ws/kb/:kbId?token=<jwt>` | 即時文件變更通知 |
+
+> 文件的 INSERT/UPDATE/DELETE 走 service-role（`documents` 只有 SELECT RLS 政策）；
+> KB 更名/刪除同理走 service-role。
 
 - 啟動時：`startDocumentListener()`（訂閱 `document_changes` NOTIFY 頻道）、
   `setProcessor()`（註冊解析佇列的 processor）、`recoverStuckJobs()`（復原上次崩潰時

@@ -10,7 +10,7 @@ export default function WikisPage() {
   const loading = useKBStore((s) => s.loading);
 
   return (
-    <main className="mx-auto mt-10 w-full max-w-3xl px-6">
+    <main className="mx-auto h-full w-full max-w-3xl overflow-y-auto px-6 pt-10">
       <h1 className="mb-4 text-2xl font-bold">Knowledge Bases</h1>
       {loading && <p className="text-sm text-muted-foreground">Loading…</p>}
       <ul className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-card">

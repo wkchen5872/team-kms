@@ -18,6 +18,8 @@ import {
   DropdownMenuSubTrigger, DropdownMenuSubContent,
 } from '@/components/ui/dropdown-menu'
 import { cn } from '@/lib/utils'
+import { apiFetch } from '@/lib/api'
+import { useUserStore } from '@/stores'
 import { NoteEditor } from '@/components/kb/NoteEditor'
 import {
   PdfDocViewer, ImageViewer, HtmlDocViewer, ContentViewer,
@@ -185,6 +187,12 @@ export function FilesGrid({
   const [activeDocId, setActiveDocId] = React.useState<string | null>(initialDocId ?? null)
   const [docInitialPage, setDocInitialPage] = React.useState<number | undefined>(initialPage)
 
+  // Follow the parent-driven doc id (e.g. opening a freshly created note),
+  // not just the mount-time value.
+  React.useEffect(() => {
+    setActiveDocId(initialDocId ?? null)
+  }, [initialDocId])
+
   React.useEffect(() => {
     const path = initialPath ?? '/'
     if (path === currentPath) return
@@ -253,6 +261,36 @@ export function FilesGrid({
     setDocInitialPage(undefined)
     onDocClose?.()
   }, [onDocClose])
+
+  // Downloads: <a> can't send an auth header, and the presigned URL is
+  // cross-origin (S3) so the `download` attr + filename are ignored there (PDFs
+  // open inline as source.pdf). Fetch bytes into a same-origin blob instead, so
+  // `download` and the original filename work and PDFs force-download.
+  // Notes/webclips have no source.* object → download their markdown content.
+  const downloadToken = useUserStore((s) => s.accessToken)
+  const handleDownload = React.useCallback(async (doc: DocumentListItem) => {
+    if (!downloadToken) return
+    try {
+      let blob: Blob
+      if (isNoteFile(doc) || isWebClipDoc(doc)) {
+        const { content } = await apiFetch<{ content: string }>(`/v1/documents/${doc.id}/content`, downloadToken)
+        blob = new Blob([content ?? ''], { type: 'text/markdown' })
+      } else {
+        const { url } = await apiFetch<{ url: string }>(`/v1/documents/${doc.id}/source-url`, downloadToken)
+        blob = await (await fetch(url)).blob()
+      }
+      const blobUrl = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = blobUrl
+      a.download = doc.filename
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      URL.revokeObjectURL(blobUrl)
+    } catch {
+      /* ignore */
+    }
+  }, [downloadToken])
 
   const canGoBack = isBrowsing ? historyIdx > 0 : true
   const canGoForward = isBrowsing ? historyIdx < history.length - 1 : false
@@ -536,6 +574,9 @@ export function FilesGrid({
                 <ExternalLink className="size-3.5" />
               </button>
             )}
+            <button onClick={() => handleDownload(activeDoc)} className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-accent rounded-md transition-colors cursor-pointer" title="Download">
+              <Download className="size-3.5" />
+            </button>
             <button onClick={closeDoc} className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-accent rounded-md transition-colors cursor-pointer" title="Close">
               <X className="size-3.5" />
             </button>
@@ -551,6 +592,9 @@ export function FilesGrid({
                 <ExternalLink className="size-3.5" />
               </button>
             )}
+            <button onClick={() => handleDownload(activeDoc)} className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-accent rounded-md transition-colors cursor-pointer" title="Download">
+              <Download className="size-3.5" />
+            </button>
             <button onClick={closeDoc} className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-accent rounded-md transition-colors cursor-pointer" title="Close">
               <X className="size-3.5" />
             </button>
@@ -560,9 +604,9 @@ export function FilesGrid({
             <button onClick={() => { /* TODO: trigger search in PDF viewer */ }} className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-accent rounded-md transition-colors cursor-pointer" title="Find in document">
               <Search className="size-3.5" />
             </button>
-            <a href={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/v1/documents/${activeDoc.id}/download`} download className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-accent rounded-md transition-colors cursor-pointer" title="Download">
+            <button onClick={() => handleDownload(activeDoc)} className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-accent rounded-md transition-colors cursor-pointer" title="Download">
               <Download className="size-3.5" />
-            </a>
+            </button>
             <button onClick={closeDoc} className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-accent rounded-md transition-colors cursor-pointer" title="Close">
               <X className="size-3.5" />
             </button>
