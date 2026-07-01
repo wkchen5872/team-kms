@@ -56,13 +56,11 @@ export async function createKnowledgeBase(
   fs: PostgresVaultFS,
   name: string,
   description = "",
-  kind = "wiki",
 ): Promise<string> {
   name = name.trim();
   if (!name) return "Error: name is required when creating a knowledge base.";
   if (name.length > 120) return "Error: knowledge base name must be 120 characters or fewer.";
-  if (kind !== "wiki" && kind !== "course") return "Error: kind must be 'wiki' or 'course'.";
-  const kb = await fs.createKnowledgeBase(name, description.trim() || null, kind);
+  const kb = await fs.createKnowledgeBase(name, description.trim() || null);
   return (
     `Created knowledge base **${kb.name}** (\`${kb.slug}\`). ` +
     "Starter pages were added at `/wiki/overview.md` and `/wiki/log.md`. " +

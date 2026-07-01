@@ -118,9 +118,9 @@ app.get("/v1/me", async (c) => {
 app.get("/v1/knowledge-bases", async (c) => c.json(await c.get("fs").listKnowledgeBases()));
 
 app.post("/v1/knowledge-bases", async (c) => {
-  const body = (await c.req.json().catch(() => ({}))) as { name?: string; description?: string; kind?: string };
+  const body = (await c.req.json().catch(() => ({}))) as { name?: string; description?: string };
   if (!body.name?.trim()) return c.json({ error: "name is required" }, 400);
-  const kb = await c.get("fs").createKnowledgeBase(body.name.trim(), body.description ?? null, body.kind ?? "wiki");
+  const kb = await c.get("fs").createKnowledgeBase(body.name.trim(), body.description ?? null);
   return c.json(kb, 201);
 });
 

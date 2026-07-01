@@ -128,8 +128,8 @@ export class PostgresVaultFS {
     );
   }
 
-  async createKnowledgeBase(name: string, description?: string | null, kind = "wiki"): Promise<KnowledgeBaseRow> {
-    const row = await this.insertKnowledgeBase(name, description ?? null, kind);
+  async createKnowledgeBase(name: string, description?: string | null): Promise<KnowledgeBaseRow> {
+    const row = await this.insertKnowledgeBase(name, description ?? null);
     await this.scaffoldWiki(row.id, row.name);
     return row;
   }
@@ -504,7 +504,6 @@ export class PostgresVaultFS {
   private async insertKnowledgeBase(
     name: string,
     description: string | null,
-    kind: string,
   ): Promise<KnowledgeBaseRow> {
     let currentName = name;
     for (let attempt = 0; attempt < 10; attempt++) {
@@ -514,9 +513,9 @@ export class PostgresVaultFS {
         // run as the owner (RLS bypass) with an explicit user_id, matching the
         // upstream get_pool() path.
         const row = await serviceQueryRow<KnowledgeBaseRow>(
-          "INSERT INTO knowledge_bases (user_id, name, slug, description, kind) VALUES ($1, $2, $3, $4, $5) " +
-            "RETURNING id, user_id, name, slug, description, kind, created_at, updated_at",
-          [this.userId, currentName, slug, description, kind],
+          "INSERT INTO knowledge_bases (user_id, name, slug, description) VALUES ($1, $2, $3, $4) " +
+            "RETURNING id, user_id, name, slug, description, created_at, updated_at",
+          [this.userId, currentName, slug, description],
         );
         return row!;
       } catch (err) {

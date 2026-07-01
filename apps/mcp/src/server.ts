@@ -53,11 +53,10 @@ export function buildMcpServer(fs: PostgresVaultFS): McpServer {
     {
       description:
         "Create a new knowledge base and scaffold starter `/wiki/overview.md` and `/wiki/log.md` " +
-        "pages. Returns the new slug — use it as `knowledge_base` with the other tools. " +
-        "Set kind='course' for a course (same page format); default 'wiki'.",
-      inputSchema: { name: z.string(), description: z.string().optional(), kind: z.string().optional() },
+        "pages. Returns the new slug — use it as `knowledge_base` with the other tools.",
+      inputSchema: { name: z.string(), description: z.string().optional() },
     },
-    async ({ name, description, kind }) => text(await createKnowledgeBase(fs, name, description ?? "", kind ?? "wiki")),
+    async ({ name, description }) => text(await createKnowledgeBase(fs, name, description ?? "")),
   );
 
   server.registerTool(
