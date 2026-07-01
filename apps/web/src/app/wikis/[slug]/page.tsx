@@ -1,13 +1,14 @@
 "use client";
 import { useEffect, useState, type ChangeEvent } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { apiFetch, type DocumentMeta } from "@/lib/api";
 import WikiContent from "@/components/WikiContent";
 import PdfViewer from "@/components/PdfViewer";
 
 export default function WikiPage() {
   const slug = String(useParams().slug);
+  const router = useRouter();
   const [docs, setDocs] = useState<DocumentMeta[]>([]);
   const [selected, setSelected] = useState<DocumentMeta | null>(null);
   const [content, setContent] = useState("");
@@ -20,8 +21,22 @@ export default function WikiPage() {
     return d;
   }
 
+  // Switch article and reflect it in the URL (?doc=<id>) so refresh/share land on the same page.
+  function selectDoc(doc: DocumentMeta | null) {
+    setSelected(doc);
+    router.replace(doc ? `/wikis/${slug}?doc=${doc.id}` : `/wikis/${slug}`);
+  }
+
   useEffect(() => {
-    refreshDocs().then((d) => setSelected(d.find((x) => x.path === "/wiki/" && x.filename === "overview.md") ?? d[0] ?? null));
+    refreshDocs().then((d) => {
+      const wanted = new URLSearchParams(window.location.search).get("doc");
+      const doc =
+        (wanted && d.find((x) => x.id === wanted)) ||
+        d.find((x) => x.path === "/wiki/" && x.filename === "overview.md") ||
+        d[0] ||
+        null;
+      selectDoc(doc);
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slug]);
 
@@ -57,6 +72,21 @@ export default function WikiPage() {
     }
   }, [selected]);
 
+  // Resolve an in-wiki link (VaultFS path like /wiki/entities/foo.md) to a doc and
+  // switch the article in-place, instead of letting the browser 404 on a fake route.
+  function navigateToHref(href: string): boolean {
+    const clean = href.split(/[?#]/)[0];
+    const idx = clean.lastIndexOf("/");
+    const path = clean.slice(0, idx + 1);
+    const filename = decodeURIComponent(clean.slice(idx + 1));
+    const doc = docs.find((d) => d.path === path && d.filename === filename);
+    if (doc) {
+      selectDoc(doc);
+      return true;
+    }
+    return false;
+  }
+
   const wikiPages = docs.filter((d) => d.path.startsWith("/wiki/"));
   const sources = docs.filter((d) => !d.path.startsWith("/wiki/"));
   const btn = { cursor: "pointer", border: 0, background: "none", padding: 0, color: "#0366d6" } as const;
@@ -77,7 +107,7 @@ export default function WikiPage() {
         <ul style={{ paddingLeft: 16 }}>
           {wikiPages.map((d) => (
             <li key={d.id}>
-              <button onClick={() => setSelected(d)} style={btn}>
+              <button onClick={() => selectDoc(d)} style={btn}>
                 {d.path.replace("/wiki/", "")}
                 {d.filename}
               </button>
@@ -90,7 +120,7 @@ export default function WikiPage() {
             <ul style={{ paddingLeft: 16 }}>
               {sources.map((d) => (
                 <li key={d.id}>
-                  <button onClick={() => setSelected(d)} style={btn}>
+                  <button onClick={() => selectDoc(d)} style={btn}>
                     {d.filename}
                   </button>
                 </li>
@@ -100,7 +130,11 @@ export default function WikiPage() {
         )}
       </nav>
       <article style={{ maxWidth: 820, lineHeight: 1.6, flexGrow: 1 }}>
-        {selected?.file_type === "pdf" ? <PdfViewer docId={selected.id} /> : <WikiContent content={content} />}
+        {selected?.file_type === "pdf" ? (
+          <PdfViewer docId={selected.id} />
+        ) : (
+          <WikiContent content={content} onNavigate={navigateToHref} />
+        )}
       </article>
     </main>
   );
