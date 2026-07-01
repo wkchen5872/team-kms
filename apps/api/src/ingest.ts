@@ -54,11 +54,22 @@ export async function ingestSource(
       input.fileType,
       input.bytes.toString("utf8"),
       input.tags ?? [],
+      undefined,
+      undefined,
+      "text",
     );
   }
 
   // Binary source: pending doc → S3 → converter → finalize.
-  const doc = await fs.createPendingDocument(input.kbId, input.filename, title, dirPath, input.fileType);
+  const doc = await fs.createPendingDocument(
+    input.kbId,
+    input.filename,
+    title,
+    dirPath,
+    input.fileType,
+    undefined,
+    input.bytes.length,
+  );
   const key = `${fs.userId}/${doc.id}/source.${input.fileType}`;
   await s3.uploadBytes(key, input.bytes, MIME[input.fileType] ?? "application/octet-stream");
   const sourceUrl = await s3.generatePresignedGet(key);

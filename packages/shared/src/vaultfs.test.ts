@@ -3,7 +3,7 @@ import { dirname, resolve } from "node:path";
 import { randomUUID } from "node:crypto";
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { PostgresVaultFS, DuplicateDocumentError } from "./vaultfs.js";
-import { serviceExecute, closePool } from "./db.js";
+import { serviceExecute, serviceQueryRow, closePool } from "./db.js";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 try {
@@ -52,6 +52,18 @@ describe.skipIf(!process.env.DATABASE_URL)("PostgresVaultFS", () => {
     const hits = await fs.searchChunks(kbId, "zoltaxian", 10);
     expect(hits.length).toBeGreaterThanOrEqual(1);
     expect(hits.some((h) => h.filename === "trade.md")).toBe(true);
+  });
+
+  it("populates file_size and parser on an ingested source", async () => {
+    const content = "Sized content for byte counting. ".repeat(6);
+    const { id } = await fs.createDocument(kbId, "sized.md", "Sized", "/", "md", content, ["source"], undefined, undefined, "text");
+    const row = await serviceQueryRow<{ file_size: number; parser: string | null }>(
+      "SELECT file_size, parser FROM documents WHERE id = $1",
+      [id],
+    );
+    // file_size is BIGINT — the pg driver returns it as a string.
+    expect(Number(row?.file_size)).toBe(Buffer.byteLength(content, "utf8"));
+    expect(row?.parser).toBe("text");
   });
 
   it("scopes search by path filter", async () => {

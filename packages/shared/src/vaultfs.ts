@@ -171,7 +171,9 @@ export class PostgresVaultFS {
     tags: string[],
     date?: string | null,
     metadata?: Record<string, unknown> | null,
+    parser?: string | null,
   ): Promise<{ id: string; filename: string; path: string }> {
+    const fileSize = Buffer.byteLength(content ?? "", "utf8");
     const client = await getPool().connect();
     try {
       await client.query("BEGIN");
@@ -179,11 +181,11 @@ export class PostgresVaultFS {
       try {
         const res = await client.query<{ id: string; filename: string; path: string }>(
           "INSERT INTO documents (knowledge_base_id, user_id, filename, title, path, " +
-            "file_type, status, content, tags, date, metadata, version) " +
-            "SELECT $1, $2, $3, $4, $5, $6, 'ready', $7, $8, $9, $10::jsonb, 1 " +
+            "file_type, status, content, tags, date, metadata, file_size, parser, version) " +
+            "SELECT $1, $2, $3, $4, $5, $6, 'ready', $7, $8, $9, $10::jsonb, $11, $12, 1 " +
             "WHERE EXISTS (SELECT 1 FROM knowledge_bases WHERE id = $1 AND user_id = $2) " +
             "RETURNING id, filename, path",
-          [kbId, this.userId, filename, title, dirPath, fileType, content, tags, date ?? null, metadata ? JSON.stringify(metadata) : null],
+          [kbId, this.userId, filename, title, dirPath, fileType, content, tags, date ?? null, metadata ? JSON.stringify(metadata) : null, fileSize, parser ?? null],
         );
         row = res.rows[0];
       } catch (err) {
@@ -267,13 +269,14 @@ export class PostgresVaultFS {
     dirPath: string,
     fileType: string,
     metadata?: Record<string, unknown> | null,
+    fileSize = 0,
   ): Promise<{ id: string; filename: string; path: string }> {
     const row = await serviceQueryRow<{ id: string; filename: string; path: string }>(
-      "INSERT INTO documents (knowledge_base_id, user_id, filename, title, path, file_type, status, metadata, version) " +
-        "SELECT $1, $2, $3, $4, $5, $6, 'pending', $7::jsonb, 1 " +
+      "INSERT INTO documents (knowledge_base_id, user_id, filename, title, path, file_type, status, metadata, file_size, version) " +
+        "SELECT $1, $2, $3, $4, $5, $6, 'pending', $7::jsonb, $8, 1 " +
         "WHERE EXISTS (SELECT 1 FROM knowledge_bases WHERE id = $1 AND user_id = $2) " +
         "RETURNING id, filename, path",
-      [kbId, this.userId, filename, title, dirPath, fileType, metadata ? JSON.stringify(metadata) : null],
+      [kbId, this.userId, filename, title, dirPath, fileType, metadata ? JSON.stringify(metadata) : null, fileSize],
     );
     if (!row) throw new Error(`knowledge base ${kbId} not owned by user`);
     return row;
@@ -297,7 +300,7 @@ export class PostgresVaultFS {
         );
       }
       await client.query(
-        "UPDATE documents SET content = $1, page_count = $2, status = 'ready', updated_at = now() " +
+        "UPDATE documents SET content = $1, page_count = $2, status = 'ready', parser = 'opendataloader', updated_at = now() " +
           "WHERE id = $3 AND user_id = $4",
         [content, pages.length, docId, this.userId],
       );

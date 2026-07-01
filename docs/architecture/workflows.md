@@ -34,6 +34,58 @@ RLS 策略：所有表皆啟用 RLS；base policy 為 `SELECT` 限定 `user_id =
 （或透過知識庫擁有權間接限定）；寫入操作走 `packages/shared/db.ts` 的 `scopedExecute`
 （一般使用者）或 `serviceExecute`（系統內部信任操作，如 pending 文件建立、chunk 索引寫入）。
 
+> 註：上表為**邏輯順序**；實際檔名已改用 Supabase 官方時間戳慣例
+> （`YYYYMMDDHHmmss_*.sql`，時間取自各檔建立時間）。另外 `knowledge_bases.kind`
+> （wiki/course）與 `documents.url`（Chrome 擴充功能 webclip 用）皆為 upstream 照搬但本
+> 專案用不到的欄位，已由後續 drop migration 移除。
+
+---
+
+## `documents` 表設計概念：單一表存兩種東西，frontmatter 是真相來源
+
+`documents` 是整個系統的核心，有兩個容易誤解的設計要點：
+
+### ① 同一張表同時裝「來源檔」與「wiki 頁」
+
+靠 `path` 區分，這是 VaultFS「所有東西都是 document」的抽象：
+
+- `path` 以 `/wiki/` 開頭 → **Claude 撰寫的 wiki 頁**（overview / concepts / entities…）
+- 其他 path → **使用者上傳的來源檔**（PDF / docx / md / 圖片…）
+
+所以很多欄位只對其中一種有意義，另一種留 NULL/預設，屬正常設計。
+
+### ② 資料流方向：frontmatter → 欄位（不是反過來）
+
+對 wiki 頁而言，**`content`（含 YAML frontmatter 的 markdown）才是唯一真相來源**；
+`tags`、`date` 這兩個欄位是**從 frontmatter 抽出來的「衍生投影」（denormalized copy）**，
+目的是讓 SQL 能直接查詢/排序，不必每次去 parse markdown。**不是資料庫欄位餵給
+frontmatter，而是 frontmatter 餵給資料庫欄位。**
+
+```mermaid
+graph LR
+    Claude["Claude 透過 MCP<br/>寫 markdown"] -->|"content 含<br/>tags: / date:"| FM["content 欄<br/>(frontmatter = 真相來源)"]
+    FM -->|"parseFrontmatter()<br/>extractDateAndMeta / effectiveTags"| COL["tags 欄 · date 欄<br/>(衍生投影)"]
+```
+
+實作位置：`apps/mcp/src/wiki.ts`（`parseFrontmatter` / `extractDateAndMeta` /
+`effectiveTags`）→ `packages/shared/src/vaultfs.ts` 的 `createDocument` / `updateDocument`
+把抽出的 `tags`、`date` 寫進欄位。修正既有 `date` 欄位時也是**以 content frontmatter 為準**回填。
+
+> 踩雷提醒：YAML 1.1 有內建 timestamp 型別，無引號的 `date: 2026-06-30` 會被 js-yaml
+> 解析成 JavaScript `Date` 物件，若直接 `String()` 會變成
+> `Tue Jun 30 2026 08:00:00 GMT+0800 (...)` 這種長格式。`extractDateAndMeta` 已特判
+> `Date` 物件、正規化回 `YYYY-MM-DD`。
+
+### ③ 欄位角色速查
+
+| 角色 | 欄位 | 說明 |
+|---|---|---|
+| 核心 | `filename` `title` `path` `file_type` `status` `content` `page_count` `version` `archived` | 兩種文件都用 |
+| 衍生投影（來自 frontmatter） | `tags` `date` | wiki 頁才有值；真相在 `content` frontmatter |
+| ingest 寫入 | `file_size`（原始/內容 byte 數）、`parser`（`text` / `opendataloader`；解析失敗或 wiki 頁為 NULL） | 上傳/解析時填 |
+| 圖譜/維護 | `document_number`（每 KB 遞增，trigger 自動）、`stale_since`（引用來源被編輯時標記） | 自動維護 |
+| 已移除 / 未接線 | ~~`url`~~（已刪）、~~`kind`~~（已刪）、`sort_order`（upstream 後端也沒用） | 見上方 migration 註 |
+
 ---
 
 ## 流程一：檔案上傳 → 解析 → 索引

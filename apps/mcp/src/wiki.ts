@@ -74,7 +74,11 @@ export function extractFrontmatterTags(meta: Record<string, unknown>): string[] 
 
 export function extractDateAndMeta(meta: Record<string, unknown>): [string | null, Record<string, unknown>] {
   let dateStr: string | null = null;
-  if ("date" in meta && meta.date != null) dateStr = String(meta.date);
+  if ("date" in meta && meta.date != null) {
+    // YAML auto-parses an unquoted ISO date (2026-06-30) into a Date object; String()
+    // would yield a long localized form, so normalize a Date back to YYYY-MM-DD.
+    dateStr = meta.date instanceof Date ? meta.date.toISOString().slice(0, 10) : String(meta.date);
+  }
   const metadata: Record<string, unknown> = {};
   if (typeof meta.description === "string" && meta.description.trim()) metadata.description = meta.description.trim();
   return [dateStr, metadata];
