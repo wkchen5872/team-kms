@@ -89,51 +89,60 @@ export default function WikiPage() {
 
   const wikiPages = docs.filter((d) => d.path.startsWith("/wiki/"));
   const sources = docs.filter((d) => !d.path.startsWith("/wiki/"));
-  const btn = { cursor: "pointer", border: 0, background: "none", padding: 0, color: "#0366d6" } as const;
+  const itemBtn = (active: boolean) =>
+    `block w-full truncate text-left text-sm ${active ? "font-semibold text-blue-700" : "text-blue-600 hover:underline"}`;
 
   return (
-    <main style={{ display: "flex", gap: 24, padding: 24 }}>
-      <nav style={{ width: 240, flexShrink: 0 }}>
-        <Link href="/wikis">← all wikis</Link>
-        <h3>{slug}</h3>
-        <Link href={`/wikis/${slug}/graph`}>📊 graph</Link>
-        <div style={{ margin: "12px 0" }}>
-          <label style={{ cursor: "pointer", color: "#0366d6" }}>
+    <main className="mx-auto flex max-w-7xl gap-6 p-6">
+      <nav className="w-60 flex-shrink-0 space-y-3">
+        <Link href="/wikis" className="text-sm text-gray-500 hover:underline">
+          ← all wikis
+        </Link>
+        <h3 className="text-lg font-bold">{slug}</h3>
+        <Link href={`/wikis/${slug}/graph`} className="block text-sm text-blue-600 hover:underline">
+          📊 graph
+        </Link>
+        <div>
+          <label className="cursor-pointer text-sm text-blue-600 hover:underline">
             {uploading ? `Uploading ${progress}…` : "📎 Upload sources"}
-            <input type="file" multiple onChange={onUpload} disabled={uploading} style={{ display: "none" }} />
+            <input type="file" multiple onChange={onUpload} disabled={uploading} className="hidden" />
           </label>
         </div>
-        <h4>Wiki</h4>
-        <ul style={{ paddingLeft: 16 }}>
-          {wikiPages.map((d) => (
-            <li key={d.id}>
-              <button onClick={() => selectDoc(d)} style={btn}>
-                {d.path.replace("/wiki/", "")}
-                {d.filename}
-              </button>
-            </li>
-          ))}
-        </ul>
+        <div>
+          <h4 className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-400">Wiki</h4>
+          <ul className="space-y-0.5">
+            {wikiPages.map((d) => (
+              <li key={d.id}>
+                <button onClick={() => selectDoc(d)} className={itemBtn(selected?.id === d.id)}>
+                  {d.path.replace("/wiki/", "")}
+                  {d.filename}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
         {sources.length > 0 && (
-          <>
-            <h4>Sources</h4>
-            <ul style={{ paddingLeft: 16 }}>
+          <div>
+            <h4 className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-400">Sources</h4>
+            <ul className="space-y-0.5">
               {sources.map((d) => (
                 <li key={d.id}>
-                  <button onClick={() => selectDoc(d)} style={btn}>
+                  <button onClick={() => selectDoc(d)} className={itemBtn(selected?.id === d.id)}>
                     {d.filename}
                   </button>
                 </li>
               ))}
             </ul>
-          </>
+          </div>
         )}
       </nav>
-      <article style={{ maxWidth: 820, lineHeight: 1.6, flexGrow: 1 }}>
+      <article className="min-w-0 flex-grow rounded-lg bg-white p-8 shadow-sm">
         {selected?.file_type === "pdf" ? (
           <PdfViewer docId={selected.id} />
         ) : (
-          <WikiContent content={content} onNavigate={navigateToHref} />
+          <div className="prose prose-slate max-w-none prose-pre:bg-gray-100 prose-pre:text-gray-800">
+            <WikiContent content={content} onNavigate={navigateToHref} />
+          </div>
         )}
       </article>
     </main>

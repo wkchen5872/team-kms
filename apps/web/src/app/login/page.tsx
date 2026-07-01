@@ -17,15 +17,39 @@ export default function LoginPage() {
     else router.replace("/wikis");
   }
 
+  const input =
+    "rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500";
+
   return (
-    <main style={{ maxWidth: 360, margin: "80px auto", padding: 24 }}>
-      <h1>Team KMS</h1>
-      <form onSubmit={onSubmit} style={{ display: "grid", gap: 12 }}>
-        <input placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} type="email" required />
-        <input placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} type="password" required />
-        <button type="submit">Sign in</button>
-        {error && <p style={{ color: "crimson" }}>{error}</p>}
-      </form>
+    <main className="mx-auto mt-20 w-full max-w-sm px-6">
+      <div className="rounded-xl bg-white p-8 shadow-sm">
+        <h1 className="mb-6 text-2xl font-bold">Team KMS</h1>
+        <form onSubmit={onSubmit} className="grid gap-3">
+          <input
+            className={input}
+            placeholder="Email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            type="email"
+            required
+          />
+          <input
+            className={input}
+            placeholder="Password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            type="password"
+            required
+          />
+          <button
+            type="submit"
+            className="rounded-md bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700"
+          >
+            Sign in
+          </button>
+          {error && <p className="text-sm text-red-600">{error}</p>}
+        </form>
+      </div>
     </main>
   );
 }
