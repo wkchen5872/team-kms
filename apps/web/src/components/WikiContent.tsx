@@ -1,6 +1,8 @@
 "use client";
 import ReactMarkdown from "react-markdown";
 import type { Components } from "react-markdown";
+import remarkGfm from "remark-gfm";
+import remarkFrontmatter from "remark-frontmatter";
 import MermaidBlock from "./MermaidBlock";
 
 const components: Components = {
@@ -14,5 +16,12 @@ const components: Components = {
 };
 
 export default function WikiContent({ content }: { content: string }) {
-  return <ReactMarkdown components={components}>{content}</ReactMarkdown>;
+  return (
+    <ReactMarkdown
+      remarkPlugins={[remarkGfm, remarkFrontmatter]}
+      components={components}
+    >
+      {content}
+    </ReactMarkdown>
+  );
 }
