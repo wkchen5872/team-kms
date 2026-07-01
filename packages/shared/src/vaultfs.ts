@@ -23,6 +23,8 @@ export class DuplicateDocumentError extends Error {
   }
 }
 
+export type DocumentKind = "raw" | "wiki" | "asset";
+
 export interface KnowledgeBaseRow {
   id: string;
   name: string;
@@ -161,6 +163,16 @@ export class PostgresVaultFS {
     );
   }
 
+  /** Dedup lookup: an active document in this KB with the same raw-bytes hash. */
+  async findByFileHash(kbId: string, fileHash: string): Promise<{ id: string; filename: string; path: string } | null> {
+    return scopedQueryRow<{ id: string; filename: string; path: string }>(
+      this.userId,
+      "SELECT id, filename, path FROM documents " +
+        "WHERE knowledge_base_id = $1 AND file_hash = $2 AND NOT archived AND user_id = $3 LIMIT 1",
+      [kbId, fileHash, this.userId],
+    );
+  }
+
   async createDocument(
     kbId: string,
     filename: string,
@@ -172,7 +184,10 @@ export class PostgresVaultFS {
     date?: string | null,
     metadata?: Record<string, unknown> | null,
     parser?: string | null,
+    kind?: DocumentKind,
+    fileHash?: string | null,
   ): Promise<{ id: string; filename: string; path: string }> {
+    const resolvedKind: DocumentKind = kind ?? (dirPath.startsWith("/wiki/") ? "wiki" : "raw");
     const fileSize = Buffer.byteLength(content ?? "", "utf8");
     const client = await getPool().connect();
     try {
@@ -181,11 +196,11 @@ export class PostgresVaultFS {
       try {
         const res = await client.query<{ id: string; filename: string; path: string }>(
           "INSERT INTO documents (knowledge_base_id, user_id, filename, title, path, " +
-            "file_type, status, content, tags, date, metadata, file_size, parser, version) " +
-            "SELECT $1, $2, $3, $4, $5, $6, 'ready', $7, $8, $9, $10::jsonb, $11, $12, 1 " +
+            "file_type, kind, status, content, tags, date, metadata, file_size, file_hash, version) " +
+            "SELECT $1, $2, $3, $4, $5, $6, $7, 'ready', $8, $9, $10, $11::jsonb, $12, $13, 1 " +
             "WHERE EXISTS (SELECT 1 FROM knowledge_bases WHERE id = $1 AND user_id = $2) " +
             "RETURNING id, filename, path",
-          [kbId, this.userId, filename, title, dirPath, fileType, content, tags, date ?? null, metadata ? JSON.stringify(metadata) : null, fileSize, parser ?? null],
+          [kbId, this.userId, filename, title, dirPath, fileType, resolvedKind, content, tags, date ?? null, metadata ? JSON.stringify(metadata) : null, fileSize, fileHash ?? null],
         );
         row = res.rows[0];
       } catch (err) {
@@ -195,6 +210,10 @@ export class PostgresVaultFS {
         throw err;
       }
       if (!row) throw new Error(`knowledge base ${kbId} not owned by user`);
+      // Raw sources carry a 1:1 document_raw detail row (parser/error_message).
+      if (resolvedKind === "raw") {
+        await client.query("INSERT INTO document_raw (document_id, parser) VALUES ($1, $2)", [row.id, parser ?? null]);
+      }
       if (fileType === "md" || fileType === "txt") {
         await storeChunksOnClient(client, row.id, this.userId, kbId, chunkText(content || ""));
       }
@@ -270,13 +289,19 @@ export class PostgresVaultFS {
     fileType: string,
     metadata?: Record<string, unknown> | null,
     fileSize = 0,
+    fileHash?: string | null,
   ): Promise<{ id: string; filename: string; path: string }> {
+    // Binary sources are always kind='raw' and get their document_raw detail row
+    // atomically (parser/error_message filled later by finalizeExtractedDocument).
     const row = await serviceQueryRow<{ id: string; filename: string; path: string }>(
-      "INSERT INTO documents (knowledge_base_id, user_id, filename, title, path, file_type, status, metadata, file_size, version) " +
-        "SELECT $1, $2, $3, $4, $5, $6, 'pending', $7::jsonb, $8, 1 " +
+      "WITH new_doc AS (" +
+        "INSERT INTO documents (knowledge_base_id, user_id, filename, title, path, file_type, kind, status, metadata, file_size, file_hash, version) " +
+        "SELECT $1, $2, $3, $4, $5, $6, 'raw', 'pending', $7::jsonb, $8, $9, 1 " +
         "WHERE EXISTS (SELECT 1 FROM knowledge_bases WHERE id = $1 AND user_id = $2) " +
-        "RETURNING id, filename, path",
-      [kbId, this.userId, filename, title, dirPath, fileType, metadata ? JSON.stringify(metadata) : null, fileSize],
+        "RETURNING id, filename, path" +
+      "), _raw AS (INSERT INTO document_raw (document_id) SELECT id FROM new_doc) " +
+      "SELECT id, filename, path FROM new_doc",
+      [kbId, this.userId, filename, title, dirPath, fileType, metadata ? JSON.stringify(metadata) : null, fileSize, fileHash ?? null],
     );
     if (!row) throw new Error(`knowledge base ${kbId} not owned by user`);
     return row;
@@ -300,10 +325,12 @@ export class PostgresVaultFS {
         );
       }
       await client.query(
-        "UPDATE documents SET content = $1, page_count = $2, status = 'ready', parser = 'opendataloader', updated_at = now() " +
+        "UPDATE documents SET content = $1, page_count = $2, status = 'ready', updated_at = now() " +
           "WHERE id = $3 AND user_id = $4",
         [content, pages.length, docId, this.userId],
       );
+      // parser lives in the document_raw detail table (row created at pending time).
+      await client.query("UPDATE document_raw SET parser = 'opendataloader' WHERE document_id = $1", [docId]);
       await storeChunksOnClient(
         client,
         docId,
@@ -332,7 +359,7 @@ export class PostgresVaultFS {
       this.userId,
       "SELECT id, filename, title, path, file_type, tags, page_count, date, updated_at " +
         "FROM documents WHERE knowledge_base_id = $1 AND NOT archived AND user_id = $2 " +
-        "AND COALESCE(metadata->>'asset', 'false') <> 'true' ORDER BY path, filename",
+        "AND kind <> 'asset' ORDER BY path, filename",
       [kbId, this.userId],
     );
   }
@@ -342,7 +369,7 @@ export class PostgresVaultFS {
       this.userId,
       "SELECT id, filename, title, path, content, tags, file_type, page_count, metadata, date " +
         "FROM documents WHERE knowledge_base_id = $1 AND NOT archived AND user_id = $2 " +
-        "AND COALESCE(metadata->>'asset', 'false') <> 'true' ORDER BY path, filename",
+        "AND kind <> 'asset' ORDER BY path, filename",
       [kbId, this.userId],
     );
   }

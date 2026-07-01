@@ -2,6 +2,7 @@
  * Ingest a source file: text/markdown is indexed directly; PDF/Office is
  * uploaded to S3, extracted via the converter, then stored as pages + chunks.
  */
+import { createHash } from "node:crypto";
 import type { PostgresVaultFS, S3Service } from "@team-kms/shared";
 import type { ConverterClient } from "./converter-client.js";
 
@@ -45,6 +46,12 @@ export async function ingestSource(
   const title = input.title ?? titleFrom(input.filename);
   const dirPath = input.dirPath ?? "/";
 
+  // Dedup: identical raw bytes already ingested in this KB → return the existing doc,
+  // skip S3 upload and extraction. Scoped per KB; same bytes in another KB are allowed.
+  const fileHash = createHash("sha256").update(input.bytes).digest("hex");
+  const existing = await fs.findByFileHash(input.kbId, fileHash);
+  if (existing) return existing;
+
   if (TEXT_TYPES.has(input.fileType)) {
     return fs.createDocument(
       input.kbId,
@@ -57,6 +64,8 @@ export async function ingestSource(
       undefined,
       undefined,
       "text",
+      "raw",
+      fileHash,
     );
   }
 
@@ -69,6 +78,7 @@ export async function ingestSource(
     input.fileType,
     undefined,
     input.bytes.length,
+    fileHash,
   );
   const key = `${fs.userId}/${doc.id}/source.${input.fileType}`;
   await s3.uploadBytes(key, input.bytes, MIME[input.fileType] ?? "application/octet-stream");

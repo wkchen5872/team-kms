@@ -54,16 +54,36 @@ describe.skipIf(!process.env.DATABASE_URL)("PostgresVaultFS", () => {
     expect(hits.some((h) => h.filename === "trade.md")).toBe(true);
   });
 
-  it("populates file_size and parser on an ingested source", async () => {
+  it("classifies a source as raw, sizes it, and records parser in document_raw", async () => {
     const content = "Sized content for byte counting. ".repeat(6);
     const { id } = await fs.createDocument(kbId, "sized.md", "Sized", "/", "md", content, ["source"], undefined, undefined, "text");
-    const row = await serviceQueryRow<{ file_size: number; parser: string | null }>(
-      "SELECT file_size, parser FROM documents WHERE id = $1",
+    const doc = await serviceQueryRow<{ file_size: number; kind: string }>(
+      "SELECT file_size, kind FROM documents WHERE id = $1",
       [id],
     );
     // file_size is BIGINT — the pg driver returns it as a string.
-    expect(Number(row?.file_size)).toBe(Buffer.byteLength(content, "utf8"));
-    expect(row?.parser).toBe("text");
+    expect(Number(doc?.file_size)).toBe(Buffer.byteLength(content, "utf8"));
+    expect(doc?.kind).toBe("raw");
+    // raw sources carry a 1:1 document_raw row; parser lives there now.
+    const raw = await serviceQueryRow<{ parser: string | null }>(
+      "SELECT parser FROM document_raw WHERE document_id = $1",
+      [id],
+    );
+    expect(raw?.parser).toBe("text");
+  });
+
+  it("classifies a wiki page as wiki with no document_raw row", async () => {
+    const { id } = await fs.createDocument(kbId, "concept.md", "Concept", "/wiki/", "md", "A concept page body.", ["wiki"]);
+    const doc = await serviceQueryRow<{ kind: string }>("SELECT kind FROM documents WHERE id = $1", [id]);
+    expect(doc?.kind).toBe("wiki");
+    const raw = await serviceQueryRow<{ document_id: string }>("SELECT document_id FROM document_raw WHERE document_id = $1", [id]);
+    expect(raw).toBeNull();
+  });
+
+  it("classifies an svg as asset and hides it from listings", async () => {
+    await fs.createDocument(kbId, "chart.svg", "Chart", "/wiki/", "svg", "<svg></svg>", ["asset"], undefined, undefined, undefined, "asset");
+    const docs = await fs.listDocuments(kbId);
+    expect(docs.some((d) => d.filename === "chart.svg")).toBe(false);
   });
 
   it("scopes search by path filter", async () => {

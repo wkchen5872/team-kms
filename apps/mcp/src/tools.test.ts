@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
-import { PostgresVaultFS, serviceExecute, closePool } from "@team-kms/shared";
+import { PostgresVaultFS, serviceExecute, serviceQueryRow, closePool } from "@team-kms/shared";
 import { buildMcpServer } from "./server.js";
 
 const userId = randomUUID();
@@ -63,6 +63,21 @@ describe.skipIf(!process.env.DATABASE_URL)("MCP tools over the protocol", () => 
 
     const overview = await call("read", { knowledge_base: "mcp-kb", path: "/wiki/overview.md" });
     expect(overview).toContain("Referenced by");
+  });
+
+  it("creating an .svg classifies it as an asset", async () => {
+    await call("create", {
+      knowledge_base: "mcp-kb",
+      title: "flow.svg",
+      path: "/wiki/",
+      content: "<svg></svg>",
+      tags: ["diagram"],
+    });
+    const row = await serviceQueryRow<{ kind: string }>(
+      "SELECT kind FROM documents WHERE user_id = $1 AND filename = $2",
+      [userId, "flow.svg"],
+    );
+    expect(row?.kind).toBe("asset");
   });
 
   it("keyword search finds the new page", async () => {

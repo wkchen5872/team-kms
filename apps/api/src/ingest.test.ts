@@ -44,6 +44,18 @@ describe.skipIf(!process.env.DATABASE_URL)("ingestSource", () => {
     expect(hits.some((h) => h.filename === "notes.md")).toBe(true);
   });
 
+  it("deduplicates re-uploads by file hash within a KB, but not across KBs", async () => {
+    const bytes = Buffer.from("Dedup me: the plithtavian ledger balanced at last. ".repeat(6));
+    const first = await ingestSource(deps, { kbId, filename: "dedup-a.md", fileType: "md", bytes });
+    // Same bytes, different filename → deduped back to the first doc (hash-based, not name-based).
+    const again = await ingestSource(deps, { kbId, filename: "dedup-b.md", fileType: "md", bytes });
+    expect(again.id).toBe(first.id);
+    // Same bytes in a different KB → a new document.
+    const kb2 = (await deps.fs.createKnowledgeBase("Ingest KB 2")).id;
+    const other = await ingestSource(deps, { kbId: kb2, filename: "dedup-a.md", fileType: "md", bytes });
+    expect(other.id).not.toBe(first.id);
+  });
+
   it("ingests a PDF end-to-end: S3 → converter → pages → chunks", async () => {
     const doc = await ingestSource(deps, {
       kbId,

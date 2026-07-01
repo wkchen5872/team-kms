@@ -71,7 +71,9 @@ export function extractionProcessor(s3: S3Service, converter: ConverterClient): 
       const pages = await converter.extract(url, doc.file_type);
       await new PostgresVaultFS(doc.user_id).finalizeExtractedDocument(docId, doc.knowledge_base_id, pages);
     } catch (err) {
-      await serviceExecute("UPDATE documents SET status = 'failed', error_message = $2 WHERE id = $1", [
+      // status lives on documents; error_message on the document_raw detail row.
+      await serviceExecute("UPDATE documents SET status = 'failed' WHERE id = $1", [docId]);
+      await serviceExecute("UPDATE document_raw SET error_message = $2 WHERE document_id = $1", [
         docId,
         String(err).slice(0, 500),
       ]);

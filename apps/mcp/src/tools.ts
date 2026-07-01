@@ -252,6 +252,8 @@ export class WikiTools {
     }
     const [, fmMeta] = extractDateAndMeta(parseFrontmatter(content));
     const savedDate = effectiveDate(content, dateStr);
+    // SVG/CSV are wiki-layer assets (embedded in pages, hidden from listings); the rest are wiki pages.
+    const kind = fileType === "svg" || fileType === "csv" ? "asset" : "wiki";
 
     let docId: string;
     if (existing) {
@@ -264,7 +266,7 @@ export class WikiTools {
       docId = existing.id;
     } else {
       try {
-        const doc = await this.fs.createDocument(this.kbId, filename, title, dirPath, fileType, content, effTags, savedDate, fmMeta);
+        const doc = await this.fs.createDocument(this.kbId, filename, title, dirPath, fileType, content, effTags, savedDate, fmMeta, undefined, kind);
         docId = doc.id;
       } catch (err) {
         if (err instanceof DuplicateDocumentError) {

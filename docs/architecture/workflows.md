@@ -20,8 +20,14 @@ Migration 順序（`supabase/migrations/`）：
 
 核心表：
 
-- **`documents`**：`id, kb_id, user_id, filename, title, path, content, file_type, status,
-  page_count(≤300), tags[], metadata, date, version, stale_since, archived`
+- **`documents`**：`id, kb_id, user_id, filename, title, path, content, file_type,
+  kind('raw'|'wiki'|'asset'), status, page_count(≤300), tags[], metadata, date, file_size,
+  file_hash, version, stale_since, archived`。`kind` 是文件分類（raw 上傳來源 / wiki Claude 稿 /
+  asset 內嵌素材），寫入時明確指派；`file_hash` 為原始 bytes sha256，供同 KB 上傳去重。
+- **`document_raw`**：`document_id(PK→documents), parser, error_message`。raw 專屬的處理紀錄/备查欄，
+  1:1 掛在 raw 文件下（CTI 子表）；wiki/asset 無此列。`page_count` 因熱路徑留在 base。
+- **`sources` / `wiki_pages`**（VIEW）：各投影 `kind='raw'`（join `document_raw`）/ `kind='wiki'`
+  的相關欄位，輔助瀏覽；app 資料層仍讀 base。
 - **`document_chunks`**：`id, document_id, user_id, kb_id, chunk_index, content(≤10k字元),
   page, start_char, token_count, header_breadcrumb`；PGroonga 索引
   `idx_chunks_content_pgroonga` 支援 `&@~` 全文檢索算子。
@@ -80,11 +86,13 @@ graph LR
 
 | 角色 | 欄位 | 說明 |
 |---|---|---|
+| 分類 | `kind`（`raw`/`wiki`/`asset`） | 寫入時明確指派；取代舊的 `metadata->>'asset'` flag |
 | 核心 | `filename` `title` `path` `file_type` `status` `content` `page_count` `version` `archived` | 兩種文件都用 |
 | 衍生投影（來自 frontmatter） | `tags` `date` | wiki 頁才有值；真相在 `content` frontmatter |
-| ingest 寫入 | `file_size`（原始/內容 byte 數）、`parser`（`text` / `opendataloader`；解析失敗或 wiki 頁為 NULL） | 上傳/解析時填 |
+| ingest 寫入 | `file_size`（byte 數）、`file_hash`（原始 bytes sha256，去重用） | 上傳時填 |
+| raw 處理紀錄（子表 `document_raw`） | `parser`（`text`/`opendataloader`）、`error_message` | 移出 base；1:1 掛 raw 文件 |
 | 圖譜/維護 | `document_number`（每 KB 遞增，trigger 自動）、`stale_since`（引用來源被編輯時標記） | 自動維護 |
-| 已移除 / 未接線 | ~~`url`~~（已刪）、~~`kind`~~（已刪）、`sort_order`（upstream 後端也沒用） | 見上方 migration 註 |
+| 已移除 | ~~`url`~~、~~`kind`(舊 course 版)~~、`sort_order`（upstream 後端也沒用） | 見上方 migration 註 |
 
 ---
 
