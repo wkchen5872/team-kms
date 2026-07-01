@@ -20,6 +20,7 @@ export interface DocumentListItem {
   metadata?: Record<string, unknown> | null;
   version?: number;
   document_number?: number | null;
+  page_count?: number | null;
   error_message?: string | null;
   file_size?: number;
   sort_order?: number;

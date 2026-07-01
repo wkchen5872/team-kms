@@ -218,8 +218,13 @@ app.post("/v1/knowledge-bases/:slug/documents/note", async (c) => {
 app.patch("/v1/documents/:id", async (c) => {
   const fs = c.get("fs");
   const id = c.req.param("id");
-  const body = (await c.req.json().catch(() => ({}))) as { path?: string; title?: string };
+  const body = (await c.req.json().catch(() => ({}))) as { path?: string; title?: string; content?: string };
   try {
+    if (typeof body.content === "string") {
+      const updated = await fs.updateDocument(id, body.content);
+      if (!updated) return c.json({ error: "Document not found" }, 404);
+      return c.json(updated);
+    }
     if (typeof body.path === "string") {
       const moved = await fs.moveDocument(id, body.path);
       if (!moved) return c.json({ error: "Document not found" }, 404);
@@ -230,7 +235,7 @@ app.patch("/v1/documents/:id", async (c) => {
       if (!renamed) return c.json({ error: "Document not found" }, 404);
       return c.json(renamed);
     }
-    return c.json({ error: "path or title is required" }, 400);
+    return c.json({ error: "path, title, or content is required" }, 400);
   } catch (err) {
     if (isUnique(err)) return c.json({ error: "A document already exists at that path" }, 409);
     throw err;

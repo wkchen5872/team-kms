@@ -117,6 +117,16 @@ describe.skipIf(!SUPABASE_URL || !SERVICE)("REST API", () => {
     expect(mv.status).toBe(200);
     expect(((await mv.json()) as { path: string }).path).toBe("/folder/");
 
+    // edit note content via PATCH { content }
+    const edit = await app.request(`/v1/documents/${note.id}`, {
+      method: "PATCH",
+      headers: jsonAuth,
+      body: JSON.stringify({ content: "The vorlon consensus later shifted. ".repeat(6) }),
+    });
+    expect(edit.status).toBe(200);
+    const edited = (await (await app.request(`/v1/documents/${note.id}/content`, { headers: authHeader() })).json()) as { content: string };
+    expect(edited.content).toContain("later shifted");
+
     // search finds it
     const search = (await (
       await app.request(`/v1/knowledge-bases/${kb.slug}/search?q=vorlon`, { headers: authHeader() })

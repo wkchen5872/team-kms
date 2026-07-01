@@ -146,3 +146,16 @@ http://localhost:3000 用 **同一個** `demo@test.local` 登入（RLS 隔離，
 | KB 清單空的 | 正常 — RLS 下新帳號只看得到自己的 KB。上傳或讓 Claude 建即可 |
 | port 8000/8001 被占用 | 先 `lsof -ti:8000 | xargs kill`（8001 同理）再 `pnpm dev` |
 | 自動化測試全 skip | 沒連到 DB — 確認 `supabase start` 且 `.env` 的 `DATABASE_URL` 正確 |
+
+## 與原版 lucasastorian/llmwiki 並排跑(port remap)
+
+原版佔 web `:3000` / api `:8000`。要同時跑我們的做視覺對照,用 env 覆蓋我們這邊的 port(不改碼):
+
+```bash
+# 我們的 api 改 8010、web 改 3010,並讓 web 指向新的 api port
+API_PORT=8010 APP_URL=http://localhost:3010 pnpm --filter @team-kms/api dev
+NEXT_PUBLIC_API_URL=http://localhost:8010 pnpm --filter @team-kms/web dev -- -p 3010
+```
+
+mcp(8001)/converter(8002)一般不與原版衝突。**在自己的終端機跑,收工時 `Ctrl-C` 收乾淨**
+(避免孤兒 process 佔 port)。

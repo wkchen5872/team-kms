@@ -36,26 +36,26 @@
 
 - [x] 5.1 `KBSidenav` + `WikiTreeNode`（砍 PageUsageBar/`/v1/usage`）
 - [x] 5.2 `WikiSelector` + `ContextMenus`（KB 建立/改名/刪除/切換）
-- [ ] 5.3 `KBDetail`（改接點：TUS `/v1/files` metadata `{filename,kb}`、multipart 路由、note/patch/delete）
-- [ ] 5.4 路由：`(dashboard)/wikis/[slug]/[[...path]]/page.tsx`（files/graph/wiki 三視圖 + `?doc=`）；刪舊 `wikis/[slug]/page.tsx` 與 `wikis/[slug]/graph/page.tsx`；`wikis` 移進 `(dashboard)`
+- [x] 5.3 `KBDetail`（改接點：TUS `/v1/files` metadata `{filename,kb}`、multipart 路由、note/patch/delete）
+- [x] 5.4 路由：`(dashboard)/wikis/[slug]/[[...path]]/page.tsx`（files/graph/wiki 三視圖 + `?doc=`）；刪舊 `wikis/[slug]/page.tsx` 與 `wikis/[slug]/graph/page.tsx`；`wikis` 移進 `(dashboard)`
 
 ## 6. P5 — 功能元件（功能 2,3,6）
 
 - [x] 6.1 `GraphViewer`（照抄，移除 Rebuild 鈕）→ **修圖譜點擊 bug**（onNodeClick→導航、path null 防護）
-- [ ] 6.2 `FilesGrid` + `DocViewers`：檔案網格 + lucide icon + 排序 + 建目錄/筆記；**NoteEditor→textarea**、PdfDocViewer 走 `<embed>`、砍 HtmlDocViewer/webclip
+- [x] 6.2 `FilesGrid` + `DocViewers`：檔案網格 + lucide icon + 排序 + 建目錄/筆記；**NoteEditor→textarea**、PdfDocViewer 走 `<embed>`、砍 HtmlDocViewer/webclip
 - [x] 6.3 `SelectionActionBar`（多選刪除）
-- [ ] 6.4 port `WikiContent`（citation/graph 連結）+ `MermaidBlock`/`DiagramViewer`
+- [x] 6.4 port `WikiContent`（citation/graph 連結）+ `MermaidBlock`/`DiagramViewer`
 
 ## 7. P6 — 搜尋與帳號（功能 4,7）
 
-- [ ] 7.1 驗證 KBSidenav 的 Cmd+K 面板（client 過濾）；（選）接 `/search` 做「搜全文」動作
+- [x] 7.1 驗證 KBSidenav 的 Cmd+K 面板（client 過濾）；（選）接 `/search` 做「搜全文」動作
 - [x] 7.2 `SidenavUserMenu`（Settings/Dark/**Sign Out**；改用我們 supabase singleton）
 - [x] 7.3 `(dashboard)/settings/page.tsx`：Dark toggle + **API keys 管理 UI**（`/v1/api-keys` list/create-once/revoke）；砍 usage/MCP-OAuth
 
 ## 8. P7 — 收尾與驗證
 
-- [ ] 8.1 刪死碼：舊 `components/{GraphViewer,WikiContent,PdfViewer}.tsx`（被取代後）
-- [ ] 8.2 `.env.local`/dev script：port remap（`API_PORT`/`NEXT_PUBLIC_API_URL`/`next dev -p`）供與原版並排跑
-- [ ] 8.3 全 workspace `tsc --noEmit` + ESLint + `pnpm test` 綠
-- [ ] 8.4 逐功能 e2e 驗證 8 項（見 proposal/design 驗證節）：shell/graph 導航/排序+建目錄/搜尋/wiki tree/grid+icon/帳號選單+登出/KB CRUD；並確認 API keys UI 能產 `tkms_` token
-- [ ] 8.5 依 openspec-commits 分批 commit（每 phase 一個 `feat(port-web-ui): ...`）
+- [x] 8.1 刪死碼：舊 `components/{GraphViewer,WikiContent,PdfViewer}.tsx`（被取代後）
+- [x] 8.2 `.env.local`/dev script：port remap（`API_PORT`/`NEXT_PUBLIC_API_URL`/`next dev -p`）供與原版並排跑
+- [x] 8.3 全 workspace `tsc --noEmit` + ESLint + `pnpm test` 綠
+- [x] 8.4 逐功能 e2e 驗證 8 項（見 proposal/design 驗證節）：shell/graph 導航/排序+建目錄/搜尋/wiki tree/grid+icon/帳號選單+登出/KB CRUD；並確認 API keys UI 能產 `tkms_` token
+- [x] 8.5 依 openspec-commits 分批 commit（每 phase 一個 `feat(port-web-ui): ...`）
