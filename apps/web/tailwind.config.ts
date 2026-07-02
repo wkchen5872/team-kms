@@ -23,6 +23,8 @@ export default {
         popover: { DEFAULT: hsl("popover"), foreground: hsl("popover-foreground") },
         card: { DEFAULT: hsl("card"), foreground: hsl("card-foreground") },
         "accent-blue": hsl("accent-blue"),
+        success: hsl("success"),
+        warning: hsl("warning"),
         sidebar: {
           DEFAULT: hsl("sidebar"),
           foreground: hsl("sidebar-foreground"),

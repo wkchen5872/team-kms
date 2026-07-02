@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Team KMS ｜ 系統設定</title>
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --panel: #ffffff;
+      --panel-2: #f1f5f9;
+      --ink: #0f172a;
+      --muted: #64748b;
+      --line: #e2e8f0;
+      --green: #10b981;
+      --amber: #f59e0b;
+      --red: #ef4444;
+      --blue: #3b82f6;
+      --blue-hover: #2563eb;
+      --shadow: 0 10px 30px rgba(15,23,42,.06);
+      --radius: 12px;
+      --radius-sm: 8px;
+      --stroke: 1px solid var(--line);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background-color: var(--bg);
+      color: var(--ink);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      padding: 32px 24px;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    .dashboard {
+      max-width: 680px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    /* Back button styling */
+    .back-btn-container {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: color 0.15s ease;
+      margin-bottom: 24px;
+      background: transparent;
+      border: none;
+      padding: 0;
+      font-family: inherit;
+    }
+    .back-btn-container:hover {
+      color: var(--ink);
+    }
+
+    /* Main Settings Panel */
+    .panel {
+      background: var(--panel);
+      border: var(--stroke);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 32px;
+      position: relative;
+    }
+    .eyebrow {
+      color: var(--muted);
+      font-size: 11px;
+      letter-spacing: .08em;
+      font-weight: 700;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+    h1 { font-size: 24px; font-weight: 800; margin: 0 0 24px; letter-spacing: -0.02em; }
+
+    .section-heading {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--ink);
+      letter-spacing: .05em;
+      text-transform: uppercase;
+      margin: 28px 0 12px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    /* Toggle Box */
+    .toggle-box {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      border: var(--stroke);
+      background: var(--panel-2);
+      padding: 16px 20px;
+      border-radius: var(--radius-sm);
+      justify-content: space-between;
+    }
+    .toggle-info h3 { margin: 0 0 4px; font-size: 14px; font-weight: 700; }
+    .toggle-info p { margin: 0; font-size: 12px; color: var(--muted); }
+    
+    .btn-toggle {
+      background: var(--blue);
+      color: #ffffff;
+      font-weight: 600;
+      padding: 8px 16px;
+      border-radius: 999px;
+      border: none;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-family: inherit;
+      font-size: 12px;
+      transition: background 0.15s ease;
+    }
+    .btn-toggle:hover {
+      background: var(--blue-hover);
+    }
+    .lamp {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #ffffff;
+      display: inline-block;
+    }
+
+    /* API Keys Section */
+    .api-desc {
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.5;
+      margin-bottom: 16px;
+    }
+    .api-create-form {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    .form-input {
+      flex: 1;
+      background: #ffffff;
+      border: var(--stroke);
+      border-radius: var(--radius-sm);
+      color: var(--ink);
+      padding: 8px 12px;
+      font-size: 13px;
+      outline: none;
+      transition: all 0.15s ease;
+    }
+    .form-input:focus {
+      border-color: var(--blue);
+      box-shadow: 0 0 0 2px rgba(59,130,246,.15);
+    }
+    
+    .btn-create {
+      background: var(--ink);
+      color: #ffffff;
+      font-weight: 600;
+      padding: 8px 16px;
+      border-radius: var(--radius-sm);
+      border: none;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-family: inherit;
+      font-size: 13px;
+      transition: opacity 0.15s ease;
+    }
+    .btn-create:hover {
+      opacity: 0.9;
+    }
+
+    /* Popdown Banner */
+    .created-key-box {
+      background: rgba(16,185,129,.06);
+      border: 1px solid rgba(16,185,129,.2);
+      border-radius: var(--radius-sm);
+      padding: 16px;
+      margin-bottom: 20px;
+    }
+    .box-title {
+      font-size: 12px;
+      font-weight: 700;
+      color: #065f46;
+      margin-bottom: 8px;
+    }
+    .key-display {
+      background: #ffffff;
+      border: 1px solid rgba(16,185,129,.15);
+      border-radius: 6px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 12px;
+    }
+    .key-code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 12.5px;
+      color: #065f46;
+      font-weight: 600;
+      word-break: break-all;
+    }
+    .btn-icon {
+      background: transparent;
+      border: none;
+      color: #047857;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      padding: 4px;
+      border-radius: 4px;
+      transition: background 0.15s ease;
+    }
+    .btn-icon:hover {
+      background: rgba(16,185,129,.1);
+    }
+
+    /* Keys List */
+    .keys-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      border: var(--stroke);
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+    }
+    .key-item {
+      background: var(--panel);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 18px;
+      border-bottom: var(--stroke);
+    }
+    .key-item:last-child {
+      border-bottom: none;
+    }
+    .key-info h4 {
+      margin: 0 0 4px;
+      font-size: 13.5px;
+      font-weight: 700;
+      color: var(--ink);
+    }
+    .key-info p {
+      margin: 0;
+      font-size: 11px;
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .key-info p span {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      background: var(--panel-2);
+      padding: 1px 4px;
+      border-radius: 3px;
+    }
+    .btn-delete {
+      background: transparent;
+      border: none;
+      color: var(--muted);
+      cursor: pointer;
+      padding: 6px;
+      border-radius: 6px;
+      transition: all 0.15s ease;
+      display: flex;
+      align-items: center;
+    }
+    .btn-delete:hover {
+      color: var(--red);
+      background: rgba(239,68,68,.08);
+    }
+
+    /* Transition Screen Overlay */
+    #fx-overlay {
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      background: #ffffff;
+      z-index: 10000;
+      display: none;
+      opacity: 0;
+      transition: opacity 0.25s ease;
+    }
+    .fade-out-anim {
+      display: block !important;
+      animation: fade-out 0.3s ease forwards;
+    }
+    @keyframes fade-out {
+      0% { opacity: 0; }
+      100% { opacity: 1; }
+    }
+  </style>
+</head>
+<body>
+  <div id="fx-overlay" aria-hidden="true"></div>
+
+  <div class="dashboard">
+    <button class="back-btn-container" onclick="triggerTransition('wikis.html')" title="返回列表">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="19" x2="5" y1="12" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+      <span>返回清單</span>
+    </button>
+
+    <main class="panel">
+      <div class="eyebrow">Preferences & Settings</div>
+      <h1>系統設定 ｜ Settings</h1>
+
+      <!-- Section 1 -->
+      <section>
+        <div class="section-heading">01 ｜ 外觀模式 Appearance</div>
+        <div class="toggle-box">
+          <div class="toggle-info">
+            <h3>淺色主題 (標準)</h3>
+            <p>使用標準現代的 Light Mode 風格，適合一般日常辦公室高亮度環境。</p>
+          </div>
+          <button class="btn-toggle" onclick="alert('提示：預設風格為亮色模式，深色模式尚在規劃中')">
+            <span class="lamp"></span>
+            <span id="theme-btn-text">LIGHT THEME ACTIVE</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- Section 2 -->
+      <section style="margin-top: 32px;">
+        <div class="section-heading">02 ｜ 外部對接金鑰 API Keys</div>
+        <p class="api-desc">
+          建立存取權杖（Token）以透過 MCP 協定將 Claude 桌上型應用程式直接連結到本專案的知識庫中。此金鑰僅會顯示一次，請立即複製保存。
+        </p>
+
+        <div class="api-create-form">
+          <input type="text" id="key-name" class="form-input" placeholder="金鑰名稱 (例如：Claude Desktop)" />
+          <button class="btn-create" onclick="generateApiKey()">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" x2="12" y1="5" y2="19"></line><line x1="5" x2="19" y1="12" y2="12"></line></svg>
+            <span>產生金鑰</span>
+          </button>
+        </div>
+
+        <!-- Popdown new key -->
+        <div class="created-key-box" id="new-key-box" style="display: none;">
+          <div class="box-title">新金鑰已生成 (請立即複製，關閉後將無法再次檢視)</div>
+          <div class="key-display">
+            <code class="key-code" id="new-key-code">sk_kms_live_7ab92c10f8824df99c2d1b82aa8e9206</code>
+            <button class="btn-icon" onclick="copyNewKey()" title="複製到剪貼簿">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path></svg>
+            </button>
+          </div>
+        </div>
+
+        <ul class="keys-list" id="keys-ul">
+          <li class="key-item" id="key-1">
+            <div class="key-info">
+              <h4>dev-mcp-claude</h4>
+              <p><span>sk_kms_dev...</span>最後使用於：2026/07/02 15:30</p>
+            </div>
+            <button class="btn-delete" onclick="deleteKey('key-1')" title="撤銷此金鑰">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path><line x1="10" x2="10" y1="11" y2="17"></line><line x1="14" x2="14" y1="11" y2="17"></line></svg>
+            </button>
+          </li>
+          <li class="key-item" id="key-2">
+            <div class="key-info">
+              <h4>production-analytics</h4>
+              <p><span>sk_kms_prod...</span>最後使用於：2026/06/28 10:14</p>
+            </div>
+            <button class="btn-delete" onclick="deleteKey('key-2')" title="撤銷此金鑰">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path><line x1="10" x2="10" y1="11" y2="17"></line><line x1="14" x2="14" y1="11" y2="17"></line></svg>
+            </button>
+          </li>
+        </ul>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    function triggerTransition(url){
+      const overlay = document.getElementById('fx-overlay');
+      overlay.classList.add('fade-out-anim');
+      setTimeout(()=>{
+        window.location.href = url;
+      },300);
+    }
+
+    function generateApiKey() {
+      const name = document.getElementById('key-name').value.trim() || "Unnamed Key";
+      const randomHex = Array.from({length: 32}, () => Math.floor(Math.random()*16).toString(16)).join('');
+      const newKey = `sk_kms_live_${randomHex.substring(0, 16)}`;
+      
+      document.getElementById('new-key-code').textContent = newKey;
+      document.getElementById('new-key-box').style.display = 'block';
+
+      // Add to list
+      const ul = document.getElementById('keys-ul');
+      const li = document.createElement('li');
+      const randomId = 'key-' + Math.floor(Math.random()*1000);
+      li.className = 'key-item';
+      li.id = randomId;
+      li.innerHTML = `
+        <div class="key-info">
+          <h4>${name}</h4>
+          <p><span>${newKey.substring(0, 11)}...</span>最後使用於：剛剛建立</p>
+        </div>
+        <button class="btn-delete" onclick="deleteKey('${randomId}')" title="撤銷此金鑰">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path><line x1="10" x2="10" y1="11" y2="17"></line><line x1="14" x2="14" y1="11" y2="17"></line></svg>
+        </button>
+      `;
+      ul.insertBefore(li, ul.firstChild);
+      document.getElementById('key-name').value = '';
+    }
+
+    function copyNewKey() {
+      const keyCode = document.getElementById('new-key-code').textContent;
+      navigator.clipboard.writeText(keyCode).then(() => {
+        alert("金鑰已複製到剪貼簿！");
+      });
+    }
+
+    function deleteKey(id) {
+      if(confirm("您確定要撤銷此 API 金鑰嗎？撤銷後，任何使用此金鑰的外部應用程式 (如 Claude MCP) 將無法連線。")) {
+        const item = document.getElementById(id);
+        if(item) item.remove();
+      }
+    }
+  </script>
+</body>
+</html>

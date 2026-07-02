@@ -112,35 +112,34 @@ export function KBSidenav({
         <WikiSelector kbId={kbId} kbName={kbName} />
       </div>
 
-      {/* Search + Upload + Graph */}
-      <div className="shrink-0 px-2 pb-1 flex items-center gap-1.5">
+      {/* Action buttons: search / graph / upload — three equal squares */}
+      <div className="shrink-0 px-2 pb-1 grid grid-cols-3 gap-1.5">
         <button
           onClick={() => setSearchOpen(true)}
           aria-label="Search pages and sources"
-          className="flex items-center gap-2 flex-1 px-2.5 py-1.5 text-xs text-muted-foreground/50 hover:text-muted-foreground border border-border hover:bg-accent rounded-md transition-colors cursor-pointer"
+          title={`Search (${isMac ? '⌘K' : 'Ctrl+K'})`}
+          className="flex items-center justify-center py-2 text-muted-foreground border border-border hover:bg-accent hover:text-foreground rounded-lg transition-colors cursor-pointer"
         >
-          <SearchIcon className="size-3" />
-          <span className="flex-1 text-left">Search</span>
-          <kbd className="text-[10px] text-muted-foreground/30 bg-muted px-1 rounded">{isMac ? '⌘K' : 'Ctrl+K'}</kbd>
+          <SearchIcon className="size-4" />
         </button>
         <button
           onClick={onGraphToggle}
-          className={cn(
-            'flex items-center justify-center px-2.5 py-1.5 border rounded-md transition-colors cursor-pointer',
-            graphViewActive
-              ? 'bg-accent text-foreground border-border'
-              : 'text-muted-foreground/50 hover:text-muted-foreground border-border hover:bg-accent',
-          )}
           title="Knowledge graph"
+          className={cn(
+            'flex items-center justify-center py-2 border rounded-lg transition-colors cursor-pointer',
+            graphViewActive
+              ? 'bg-accent-blue/10 text-accent-blue border-accent-blue/30'
+              : 'text-muted-foreground border-border hover:bg-accent hover:text-foreground',
+          )}
         >
-          <Network className="size-3" />
+          <Network className="size-4" />
         </button>
         <button
           onClick={onUpload}
-          className="flex items-center justify-center px-2.5 py-1.5 text-muted-foreground/50 hover:text-muted-foreground border border-border hover:bg-accent rounded-md transition-colors cursor-pointer"
           title="Upload files"
+          className="flex items-center justify-center py-2 text-muted-foreground border border-border hover:bg-accent hover:text-foreground rounded-lg transition-colors cursor-pointer"
         >
-          <Upload className="size-3" />
+          <Upload className="size-4" />
         </button>
       </div>
 
@@ -220,7 +219,7 @@ export function KBSidenav({
       {/* Wiki tree */}
       <div className="flex-1 min-h-0 flex flex-col px-2 pt-1">
         <div className="flex items-center px-2 mb-1 shrink-0">
-          <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/50">
+          <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
             Wiki
           </span>
         </div>
@@ -255,21 +254,33 @@ export function KBSidenav({
         )}
       </div>
 
-      {/* Sources button — separated from passive info below */}
+      {/* Data sources section */}
       <div className="shrink-0 px-2 pb-1">
+        <div className="px-2 mb-1">
+          <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
+            Data Sources
+          </span>
+        </div>
         <button
           onClick={onFilesToggle}
           className={cn(
-            'flex items-center gap-2 w-full px-2.5 py-2 text-[13px] rounded-md transition-colors cursor-pointer',
+            'flex items-center gap-2 w-full px-2.5 py-2 text-[13px] rounded-lg transition-colors cursor-pointer',
             filesViewActive
-              ? 'bg-accent text-foreground font-medium'
+              ? 'bg-accent-blue/10 text-accent-blue font-semibold'
               : 'text-muted-foreground hover:text-foreground hover:bg-accent/50',
           )}
         >
           <Library className="size-3.5" />
-          <span className="flex-1 text-left">Sources</span>
+          <span className="flex-1 text-left">所有檔案</span>
           {sourceCount > 0 && (
-            <span className="text-[10px] text-muted-foreground/30">{sourceCount}</span>
+            <span
+              className={cn(
+                'rounded-full px-1.5 py-0.5 text-[10px] font-bold',
+                filesViewActive ? 'bg-accent-blue/15 text-accent-blue' : 'bg-secondary text-muted-foreground',
+              )}
+            >
+              {sourceCount}
+            </span>
           )}
         </button>
       </div>
@@ -339,9 +350,9 @@ function WikiTreeNode({
     <div>
       <div
         className={cn(
-          'flex items-center gap-1.5 w-full text-left text-[13px] rounded-md px-2 py-1.5 transition-colors cursor-pointer',
+          'flex items-center gap-1.5 w-full text-left text-[13px] rounded-lg px-2 py-1.5 transition-colors cursor-pointer',
           isActive
-            ? 'bg-accent text-foreground font-medium'
+            ? 'bg-accent-blue/10 text-accent-blue font-semibold'
             : 'text-muted-foreground hover:text-foreground hover:bg-accent/50',
         )}
         style={{ paddingLeft: `${depth * 12 + 8}px` }}

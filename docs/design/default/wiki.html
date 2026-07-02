@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Team KMS ｜ 知識庫閱讀器</title>
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --panel: #ffffff;
+      --panel-2: #f1f5f9;
+      --ink: #0f172a;
+      --muted: #64748b;
+      --line: #e2e8f0;
+      --green: #10b981;
+      --amber: #f59e0b;
+      --red: #ef4444;
+      --blue: #3b82f6;
+      --blue-hover: #2563eb;
+      --shadow: 0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -1px rgba(0,0,0,0.03);
+      --radius: 10px;
+      --radius-sm: 6px;
+      --stroke: 1px solid var(--line);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background-color: var(--bg);
+      color: var(--ink);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+    }
+
+    /* Layout Structure */
+    .workspace {
+      display: flex;
+      width: 100vw;
+      height: 100vh;
+      position: relative;
+    }
+
+    /* Sidebar Styling */
+    .sidebar {
+      width: 260px;
+      border-right: var(--stroke);
+      background: var(--panel);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+      z-index: 10;
+    }
+    .sidebar-header {
+      padding: 16px;
+      border-bottom: var(--stroke);
+    }
+    .kb-selector {
+      width: 100%;
+      background: #ffffff;
+      border: var(--stroke);
+      border-radius: var(--radius-sm);
+      color: var(--ink);
+      padding: 8px 12px;
+      font-size: 13px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      box-shadow: 0 1px 2px rgba(0,0,0,.05);
+    }
+    .kb-selector:hover {
+      background: var(--panel-2);
+      border-color: #cbd5e1;
+    }
+    .sidebar-actions {
+      display: flex;
+      gap: 6px;
+      padding: 12px 16px;
+      border-bottom: var(--stroke);
+    }
+    .action-icon-btn {
+      flex: 1;
+      background: #ffffff;
+      border: var(--stroke);
+      color: var(--muted);
+      border-radius: 6px;
+      padding: 6px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s ease;
+      box-shadow: 0 1px 2px rgba(0,0,0,.05);
+    }
+    .action-icon-btn:hover {
+      background: var(--panel-2);
+      color: var(--ink);
+      border-color: #cbd5e1;
+    }
+    
+    /* Navigation Menu */
+    .sidebar-menu {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px;
+    }
+    .menu-section {
+      margin-bottom: 20px;
+    }
+    .menu-title {
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--muted);
+      letter-spacing: .05em;
+      margin-bottom: 6px;
+      padding-left: 8px;
+      text-transform: uppercase;
+    }
+    
+    /* Nesting tree */
+    .tree-list { list-style: none; padding: 0; margin: 0; }
+    .tree-item { margin-bottom: 2px; }
+    .tree-link {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 8px;
+      border-radius: 6px;
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 12.5px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.12s ease;
+    }
+    .tree-link:hover {
+      background: var(--panel-2);
+      color: var(--ink);
+    }
+    .tree-link.active {
+      background: rgba(59,130,246,.08);
+      color: var(--blue);
+      font-weight: bold;
+    }
+    .tree-sublist {
+      list-style: none;
+      padding-left: 18px;
+      margin: 2px 0 6px;
+      border-left: 1.5px solid var(--line);
+    }
+
+    .menu-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 12px;
+      border-radius: var(--radius-sm);
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .menu-item:hover {
+      background: var(--panel-2);
+      color: var(--ink);
+    }
+    .item-count {
+      font-size: 10px;
+      background: var(--line);
+      padding: 2px 6px;
+      border-radius: 999px;
+      color: var(--muted);
+    }
+
+    .sidebar-footer {
+      padding: 12px 16px;
+      border-top: var(--stroke);
+      background: var(--panel-2);
+    }
+    .user-profile {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--ink);
+      text-decoration: none;
+      font-size: 12px;
+      font-weight: bold;
+      width: 100%;
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      text-align: left;
+      padding: 6px;
+      border-radius: 6px;
+      transition: background 0.15s ease;
+    }
+    .user-profile:hover {
+      background: var(--line);
+    }
+    .user-avatar {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: rgba(59,130,246,.1);
+      border: 1px solid rgba(59,130,246,.2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 9px;
+      color: var(--blue);
+      font-weight: 700;
+    }
+
+    /* Main View Area */
+    .main-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      background: #ffffff;
+      min-width: 0;
+    }
+    
+    /* Top Toolbar */
+    .toolbar {
+      height: 48px;
+      border-bottom: var(--stroke);
+      padding: 0 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #ffffff;
+      flex-shrink: 0;
+    }
+    .nav-breadcrumbs {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .breadcrumb-root { color: var(--muted); }
+    .breadcrumb-sep { color: #cbd5e1; }
+    .toolbar-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .btn-toolbar {
+      background: #ffffff;
+      border: var(--stroke);
+      color: var(--ink);
+      font-size: 12.5px;
+      font-weight: 600;
+      padding: 6px 12px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      transition: all 0.15s ease;
+      box-shadow: 0 1px 2px rgba(0,0,0,.05);
+    }
+    .btn-toolbar:hover {
+      background: var(--panel-2);
+      border-color: #cbd5e1;
+    }
+
+    /* Core Article and TOC Wrapper */
+    .reader-layout {
+      flex: 1;
+      display: flex;
+      overflow: hidden;
+      min-height: 0;
+      background: #ffffff;
+    }
+    
+    /* Markdown Viewer Panel */
+    .article-container {
+      flex: 1;
+      overflow-y: auto;
+      padding: 40px;
+      min-width: 0;
+    }
+    
+    .article-wrap {
+      max-width: 680px;
+      margin: 0 auto;
+    }
+
+    /* GFM Markdown Styling */
+    .markdown-body {
+      font-size: 15px;
+      line-height: 1.6;
+      color: #334155;
+    }
+    .markdown-body h1 {
+      font-size: 28px;
+      font-weight: 800;
+      color: var(--ink);
+      margin-top: 0;
+      margin-bottom: 20px;
+      letter-spacing: -0.02em;
+      border-bottom: 1.5px solid var(--line);
+      padding-bottom: 10px;
+    }
+    .markdown-body h2 {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--ink);
+      margin-top: 32px;
+      margin-bottom: 14px;
+      scroll-margin-top: 20px;
+    }
+    .markdown-body p {
+      margin-top: 0;
+      margin-bottom: 16px;
+    }
+    
+    /* Clean Citation Badges */
+    .citation-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 4px;
+      padding: 0 4px;
+      font-size: 10px;
+      font-weight: 700;
+      background: rgba(59,130,246,.08);
+      color: var(--blue);
+      border: 1px solid rgba(59,130,246,.15);
+      cursor: pointer;
+      transition: all 0.15s ease;
+      vertical-align: super;
+      line-height: 1;
+      height: 14px;
+      margin: 0 2px;
+      position: relative;
+    }
+    .citation-badge:hover {
+      background: rgba(59,130,246,.15);
+      border-color: var(--blue);
+    }
+    
+    /* Popover on hover */
+    .citation-popover {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #ffffff;
+      border: var(--stroke);
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 11.5px;
+      color: var(--ink);
+      width: 220px;
+      box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05);
+      z-index: 100;
+      display: none;
+      font-family: inherit;
+      text-align: left;
+      font-weight: normal;
+    }
+    .citation-badge:hover .citation-popover {
+      display: block;
+    }
+
+    .markdown-body table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 20px 0;
+      font-size: 13.5px;
+    }
+    .markdown-body th, .markdown-body td {
+      border: 1px solid var(--line);
+      padding: 8px 10px;
+      text-align: left;
+    }
+    .markdown-body th {
+      background: var(--panel-2);
+      color: var(--ink);
+      font-weight: 700;
+    }
+    .markdown-body tr:nth-child(even) td {
+      background: #fbfcfd;
+    }
+
+    /* Right Sidebar Table of Contents */
+    .toc-aside {
+      width: 200px;
+      border-left: var(--stroke);
+      background: #fbfcfd;
+      padding: 24px 16px;
+      flex-shrink: 0;
+      overflow-y: auto;
+    }
+    .toc-title {
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--muted);
+      letter-spacing: .05em;
+      margin-bottom: 12px;
+      text-transform: uppercase;
+    }
+    .toc-list { list-style: none; padding: 0; margin: 0; }
+    .toc-item { margin-bottom: 8px; }
+    .toc-link {
+      display: block;
+      font-size: 12px;
+      color: var(--muted);
+      text-decoration: none;
+      transition: color 0.15s ease;
+      line-height: 1.4;
+      cursor: pointer;
+    }
+    .toc-link:hover { color: var(--ink); }
+    .toc-link.active {
+      color: var(--blue);
+      font-weight: 700;
+      position: relative;
+    }
+    .toc-link.active:before {
+      content: "";
+      position: absolute;
+      left: -8px;
+      top: 6px;
+      width: 3px;
+      height: 3px;
+      border-radius: 50%;
+      background: var(--blue);
+    }
+
+    /* Screen Transition overlay */
+    #fx-overlay {
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      background: #ffffff;
+      z-index: 10000;
+      display: none;
+      opacity: 0;
+      transition: opacity 0.25s ease;
+    }
+    .fade-out-anim {
+      display: block !important;
+      animation: fade-out 0.3s ease forwards;
+    }
+    @keyframes fade-out {
+      0% { opacity: 0; }
+      100% { opacity: 1; }
+    }
+  </style>
+</head>
+<body>
+  <div id="fx-overlay" aria-hidden="true"></div>
+
+  <div class="workspace">
+    <!-- Left Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="kb-selector" onclick="triggerTransition('wikis.html')" title="回到知識庫列表">
+          <span>松霖國際</span>
+          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 15 5 5 5-5"></path><path d="m7 9 5-5 5 5"></path></svg>
+        </div>
+      </div>
+
+      <div class="sidebar-actions">
+        <button class="action-icon-btn" title="搜尋" onclick="alert('搜尋框展開 (模擬)')">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m21 21-4.34-4.34"></path><circle cx="11" cy="11" r="8"></circle></svg>
+        </button>
+        <button class="action-icon-btn" title="關係圖譜" onclick="alert('開啟知識圖譜面版')">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="16" y="16" width="6" height="6" rx="1"></rect><rect x="2" y="16" width="6" height="6" rx="1"></rect><rect x="9" y="2" width="6" height="6" rx="1"></rect><path d="M5 16v-3a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v3"></path><path d="M12 12V8"></path></svg>
+        </button>
+        <button class="action-icon-btn" title="上傳檔案" onclick="triggerTransition('files.html')">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"></path><path d="m17 8-5-5-5 5"></path><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path></svg>
+        </button>
+      </div>
+
+      <div class="sidebar-menu">
+        <div class="menu-section">
+          <div class="menu-title">Wiki</div>
+          <ul class="tree-list">
+            <li class="tree-item">
+              <a class="tree-link active" onclick="loadContent('overview')">
+                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"></path><path d="M14 2v4a2 2 0 0 0 2 2h4"></path><path d="M10 9H8"></path><path d="M16 13H8"></path><path d="M16 17H8"></path></svg>
+                <span>專案概述 Overview</span>
+              </a>
+            </li>
+            <li class="tree-item">
+              <a class="tree-link" onclick="loadContent('kechi')">
+                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"></path><path d="M14 2v4a2 2 0 0 0 2 2h4"></path><path d="M10 9H8"></path><path d="M16 13H8"></path><path d="M16 17H8"></path></svg>
+                <span>凱智綠能案</span>
+              </a>
+              <ul class="tree-sublist">
+                <li>
+                  <a class="tree-link" onclick="loadContent('kechi-meeting')">凱智綠能會議記錄</a>
+                </li>
+                <li>
+                  <a class="tree-link" onclick="loadContent('dreg')">dReg 儲能技術指標</a>
+                </li>
+              </ul>
+            </li>
+            <li class="tree-item">
+              <a class="tree-link" onclick="loadContent('hualien')">
+                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"></path><path d="M14 2v4a2 2 0 0 0 2 2h4"></path><path d="M10 9H8"></path><path d="M16 13H8"></path><path d="M16 17H8"></path></svg>
+                <span>花蓮光英段太陽能</span>
+              </a>
+            </li>
+            <li class="tree-item">
+              <a class="tree-link" onclick="loadContent('sugar')">
+                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"></path><path d="M14 2v4a2 2 0 0 0 2 2h4"></path><path d="M10 9H8"></path><path d="M16 13H8"></path><path d="M16 17H8"></path></svg>
+                <span>台糖土地公證案</span>
+              </a>
+            </li>
+          </ul>
+        </div>
+
+        <div class="menu-section">
+          <div class="menu-title">Data Sources</div>
+          <div class="menu-item" onclick="triggerTransition('files.html')">
+            <span style="display: flex; align-items: center; gap: 8px;">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 6 4 14"></path><path d="M12 6v14"></path><path d="M8 8v12"></path><path d="M4 4v16"></path></svg>
+              <span>所有檔案</span>
+            </span>
+            <span class="item-count">77</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="sidebar-footer">
+        <button class="user-profile" onclick="triggerTransition('settings.html')" title="開啟設定">
+          <div class="user-avatar">DE</div>
+          <div style="flex: 1; min-width: 0;">
+            <div style="font-weight: 700; truncate; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2;">dev@teamkms.dev</div>
+            <div style="font-size: 9px; color: var(--muted); line-height: 1;">ACCESS: ADMIN</div>
+          </div>
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <header class="toolbar">
+        <div class="nav-breadcrumbs">
+          <span class="breadcrumb-root">松霖國際</span>
+          <span class="breadcrumb-sep">/</span>
+          <span class="breadcrumb-root">Wiki</span>
+          <span class="breadcrumb-sep">/</span>
+          <span class="breadcrumb-current" id="crumb-current">專案概述 Overview</span>
+        </div>
+        <div class="toolbar-actions">
+          <button class="btn-toolbar" onclick="alert('已將 Markdown 複製到剪貼簿！')">
+            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path></svg>
+            <span>複製</span>
+          </button>
+          <button class="btn-toolbar" onclick="alert('開始下載 Markdown 檔案')">
+            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" x2="12" y1="15" y2="3"></line></svg>
+            <span>下載</span>
+          </button>
+          <button class="btn-toolbar" onclick="alert('載入此文件的知識關係圖譜')">
+            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="16" y="16" width="6" height="6" rx="1"></rect><rect x="2" y="16" width="6" height="6" rx="1"></rect><rect x="9" y="2" width="6" height="6" rx="1"></rect><path d="M5 16v-3a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v3"></path><path d="M12 12V8"></path></svg>
+            <span>關係圖</span>
+          </button>
+        </div>
+      </header>
+
+      <div class="reader-layout">
+        <!-- Content Container -->
+        <div class="article-container">
+          <article class="article-wrap markdown-body" id="article-body">
+            <!-- Content -->
+            <h1 id="title-id">松霖國際綠能專案概述</h1>
+            
+            <p>
+              本知識庫主要維護並分析<strong>松霖國際</strong>在花蓮光英段與華東段所屬的太陽光電與儲能系統開發專案。
+              專案涉及凱智綠能的技術評估與動產質押<span class="citation-badge">1<span class="citation-popover">引用自：凱智綠能股份有限公司會議記錄<br>檔案類型：MD • 行數：12-25</span></span>。
+            </p>
+
+            <h2 id="origin">專案緣起</h2>
+            <p>
+              為響應綠能政策，松霖國際與西門子等技術供應商合作，於花蓮光復鄉大平段興建 5MW 菇棚農電共生太陽能開發專案，並在鳳林鎮規劃 60MW 開發計畫。
+              主要合約基礎建構在台糖土地公證案<span class="citation-badge">2<span class="citation-popover">引用自：台糖公證-補充說明書-大合水湳大地-台中北屯區陳平段<br>檔案類型：PDF • 頁碼：p. 3</span></span>之上。
+            </p>
+
+            <h2 id="milestones">開發階段與容量統計</h2>
+            <p>
+              以下是目前整理出的案場與設備規格，依據 2026 最新設備點交合約繪製：
+            </p>
+
+            <table>
+              <thead>
+                <tr>
+                  <th>案場名稱</th>
+                  <th>開發容量</th>
+                  <th>現況與進度說明</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>花蓮光復鄉大平段</td>
+                  <td>5 MW</td>
+                  <td>菇棚農電共生，2026/04/27 設備點交完成。</td>
+                </tr>
+                <tr>
+                  <td>花蓮鳳林鎮榮昌段</td>
+                  <td>60 MW</td>
+                  <td>60MW 菇寮農電共生，規劃引入 e-dReg 儲能系統。</td>
+                </tr>
+                <tr>
+                  <td>台中北屯陳平段</td>
+                  <td>台糖土地</td>
+                  <td>已完成公證，相關附件動產抵押權設定特約完成。</td>
+                </tr>
+              </tbody>
+            </table>
+
+            <h2 id="risks">技術與交付風險分析</h2>
+            <p>
+              本專案最大挑戰在於 e-dReg 儲能系統的併網審查與高壓改修工程。凱智綠能提供之儲能設備介紹中指出，併網容量決定 S 曲線進度，對財務模型影響大。
+              後續改善工程將交由雄獅能源工程承攬。
+            </p>
+          </article>
+        </div>
+
+        <!-- Right TOC -->
+        <aside class="toc-aside">
+          <div class="toc-title">On this page</div>
+          <ul class="toc-list" id="toc-list-ul">
+            <li class="toc-item"><a class="toc-link active" onclick="scrollToElement('title-id')">專案概述</a></li>
+            <li class="toc-item"><a class="toc-link" onclick="scrollToElement('origin')">專案緣起</a></li>
+            <li class="toc-item"><a class="toc-link" onclick="scrollToElement('milestones')">案場容量統計</a></li>
+            <li class="toc-item"><a class="toc-link" onclick="scrollToElement('risks')">技術與風險分析</a></li>
+          </ul>
+        </aside>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    function triggerTransition(url){
+      const overlay = document.getElementById('fx-overlay');
+      overlay.classList.add('fade-out-anim');
+      setTimeout(()=>{
+        window.location.href = url;
+      },300);
+    }
+
+    function scrollToElement(id) {
+      const el = document.getElementById(id);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        
+        // Update active toc
+        document.querySelectorAll('.toc-link').forEach(link => link.classList.remove('active'));
+        event.target.classList.add('active');
+      }
+    }
+
+    // Mock different pages content
+    function loadContent(page) {
+      // Remove all active tree classes
+      document.querySelectorAll('.tree-link').forEach(link => link.classList.remove('active'));
+      
+      const article = document.getElementById('article-body');
+      const crumb = document.getElementById('crumb-current');
+      const toc = document.getElementById('toc-list-ul');
+
+      if (page === 'overview') {
+        crumb.textContent = "專案概述 Overview";
+        article.innerHTML = `
+          <h1 id="title-id">松霖國際綠能專案概述</h1>
+          <p>
+            本知識庫主要維護並分析<strong>松霖國際</strong>在花蓮光英段與華東段所屬的太陽光電與儲能系統開發專案。
+            專案涉及凱智綠能的技術評估與動產質押<span class="citation-badge">1<span class="citation-popover">引用自：凱智綠能股份有限公司會議記錄<br>檔案類型：MD • 行數：12-25</span></span>。
+          </p>
+          <h2 id="origin">專案緣起</h2>
+          <p>
+            為響應綠能政策，松霖國際與西門子等技術供應商合作，於花蓮光復鄉大平段興建 5MW 菇棚農電共生太陽能開發專案，並在鳳林鎮規劃 60MW 開發計畫。
+            主要合約基礎建構在台糖土地公證案<span class="citation-badge">2<span class="citation-popover">引用自：台糖公證-補充說明書-大合水湳大地-台中北屯區陳平段<br>檔案類型：PDF • 頁碼：p. 3</span></span>之上。
+          </p>
+          <h2 id="milestones">開發階段與容量統計</h2>
+          <p>以下是目前整理出的案場與設備規格，依據 2026 最新設備點交合約繪製：</p>
+          <table>
+            <thead><tr><th>案場名稱</th><th>開發容量</th><th>現況與進度說明</th></tr></thead>
+            <tbody>
+              <tr><td>花蓮光復鄉大平段</td><td>5 MW</td><td>菇棚農電共生，2026/04/27 設備點交完成。</td></tr>
+              <tr><td>花蓮鳳林鎮榮昌段</td><td>60 MW</td><td>60MW 菇寮農電共生， e-dReg 儲能系統導入。</td></tr>
+            </tbody>
+          </table>
+          <h2 id="risks">技術與交付風險分析</h2>
+          <p>本專案最大挑戰在於 e-dReg 儲能系統的併網審查與高壓改修工程。</p>
+        `;
+        
+        toc.innerHTML = `
+          <li class="toc-item"><a class="toc-link active" onclick="scrollToElement('title-id')">專案概述</a></li>
+          <li class="toc-item"><a class="toc-link" onclick="scrollToElement('origin')">專案緣起</a></li>
+          <li class="toc-item"><a class="toc-link" onclick="scrollToElement('milestones')">案場容量統計</a></li>
+          <li class="toc-item"><a class="toc-link" onclick="scrollToElement('risks')">技術與風險分析</a></li>
+        `;
+      } 
+      else if (page === 'kechi') {
+        crumb.textContent = "凱智綠能案";
+        article.innerHTML = `
+          <h1 id="title-id">凱智綠能案合作研究</h1>
+          <p>評估與凱智綠能股份有限公司合作引進新型儲能櫃之可行性與技術支援方案。</p>
+          <h2 id="coop">合作背景</h2>
+          <p>凱智綠能具備豐富的 dReg 及 e-dReg 儲能櫃系統建置經驗，雙方於 2025 年啟動談判。</p>
+          <h2 id="tech">技術框架</h2>
+          <p>此專案主要使用 Fluence 45櫃進行配置，總容量達 64MW/2205MWH。</p>
+        `;
+        toc.innerHTML = `
+          <li class="toc-item"><a class="toc-link active" onclick="scrollToElement('title-id')">合作研究</a></li>
+          <li class="toc-item"><a class="toc-link" onclick="scrollToElement('coop')">合作背景</a></li>
+          <li class="toc-item"><a class="toc-link" onclick="scrollToElement('tech')">技術框架</a></li>
+        `;
+      }
+      else if (page === 'dreg') {
+        crumb.textContent = "dReg 儲能技術指標";
+        article.innerHTML = `
+          <h1 id="title-id">dReg 與 e-dReg 儲能系統比較</h1>
+          <p>根據凱智綠能提供之技術資料，dReg 與 e-dReg 系統存在核心調頻與容量效益差異。</p>
+          <h2 id="dreg-def">dReg (動態調頻備轉)</h2>
+          <p>著重於秒級的電力頻率調整，需要充放電速度極快之電池元件。</p>
+          <h2 id="edreg-def">e-dReg (增強型動態調頻)</h2>
+          <p>複合了調頻與能量轉移（削峰填谷）雙重效益，是目前大容量案場之主要建置方向。</p>
+        `;
+        toc.innerHTML = `
+          <li class="toc-item"><a class="toc-link active" onclick="scrollToElement('title-id')">儲能系統比較</a></li>
+          <li class="toc-item"><a class="toc-link" onclick="scrollToElement('dreg-def')">dReg 定義</a></li>
+          <li class="toc-item"><a class="toc-link" onclick="scrollToElement('edreg-def')">e-dReg 定義</a></li>
+        `;
+      }
+    }
+  </script>
+</body>
+</html>

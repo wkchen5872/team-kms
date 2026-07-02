@@ -100,8 +100,8 @@ function TableOfContents({ items }: { items: TocItem[] }) {
 
   return (
     <nav className="space-y-0.5">
-      <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/50 mb-2 px-1">
-        On this page
+      <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground mb-2 px-2.5">
+        本頁目錄 On this page
       </p>
       {items.map((item) => (
         <a
@@ -116,11 +116,11 @@ function TableOfContents({ items }: { items: TocItem[] }) {
             }
           }}
           className={cn(
-            'block text-xs leading-snug py-1 px-1 rounded transition-colors',
-            item.level === 3 && 'pl-4',
+            'block border-l-2 text-xs leading-snug py-1 pl-2.5 pr-1 transition-colors',
+            item.level === 3 && 'pl-5',
             activeId === item.id
-              ? 'text-foreground font-medium'
-              : 'text-muted-foreground/60 hover:text-muted-foreground',
+              ? 'border-accent-blue text-accent-blue font-semibold'
+              : 'border-transparent text-muted-foreground/60 hover:text-muted-foreground hover:border-border',
           )}
         >
           {item.text}

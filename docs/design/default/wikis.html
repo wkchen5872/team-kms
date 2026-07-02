@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Team KMS ｜ 知識庫清單</title>
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --panel: #ffffff;
+      --panel-2: #f1f5f9;
+      --ink: #0f172a;
+      --muted: #64748b;
+      --line: #e2e8f0;
+      --green: #10b981;
+      --amber: #f59e0b;
+      --red: #ef4444;
+      --blue: #3b82f6;
+      --blue-hover: #2563eb;
+      --shadow: 0 10px 30px rgba(15,23,42,.06), 0 1px 3px rgba(0,0,0,.02);
+      --radius: 12px;
+      --radius-sm: 8px;
+      --stroke: 1px solid var(--line);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background-color: var(--bg);
+      color: var(--ink);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", "Noto Sans TC", sans-serif;
+      padding: 32px 24px;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    .dashboard {
+      max-width: 1024px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    /* Topbar styling */
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 40px;
+      padding-bottom: 20px;
+      border-bottom: var(--stroke);
+    }
+    .topbar h1 {
+      font-size: 24px;
+      font-weight: 800;
+      margin: 0 0 6px;
+      letter-spacing: -0.02em;
+    }
+    .topbar .eyebrow {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--muted);
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      margin-bottom: 2px;
+    }
+    .topbar .meta {
+      display: flex;
+      gap: 8px;
+    }
+    .pill {
+      font-size: 11px;
+      background: var(--panel-2);
+      padding: 3px 8px;
+      border-radius: 999px;
+      color: var(--muted);
+      font-weight: 500;
+    }
+
+    .project-state {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+    .state-label {
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--muted);
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+    .lamp {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--green);
+      display: inline-block;
+    }
+
+    /* Standard Button Styles */
+    .btn-settings {
+      background: var(--panel);
+      border: var(--stroke);
+      color: var(--ink);
+      font-size: 13px;
+      font-weight: 600;
+      padding: 8px 16px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s ease;
+      box-shadow: 0 1px 2px rgba(0,0,0,.05);
+    }
+    .btn-settings:hover {
+      background: var(--panel-2);
+      border-color: #cbd5e1;
+    }
+
+    .section-heading {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--muted);
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      margin-bottom: 16px;
+    }
+
+    /* Cards Grid */
+    .cards-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 20px;
+    }
+    .card {
+      background: var(--panel);
+      border: var(--stroke);
+      border-radius: var(--radius);
+      padding: 24px;
+      box-shadow: var(--shadow);
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      min-height: 180px;
+      transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+    }
+    .card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 30px rgba(15,23,42,.08), 0 2px 4px rgba(0,0,0,.02);
+      border-color: #cbd5e1;
+    }
+    .card-label {
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+    .card-value {
+      font-size: 18px;
+      font-weight: 700;
+      margin: 0 0 8px;
+    }
+    .card-sub {
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    /* Create New Card style */
+    .card.create-new {
+      border: 1px dashed #cbd5e1;
+      background: transparent;
+      box-shadow: none;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+    }
+    .card.create-new:hover {
+      background: rgba(255,255,255,.5);
+      border-color: var(--blue);
+      transform: none;
+    }
+    .create-icon {
+      font-size: 28px;
+      color: var(--muted);
+      margin-bottom: 8px;
+      transition: color 0.15s ease;
+    }
+    .create-text {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--ink);
+    }
+    .card.create-new:hover .create-icon {
+      color: var(--blue);
+    }
+
+    /* Modal dialog styling */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(15,23,42,.3);
+      backdrop-filter: blur(4px);
+      z-index: 1000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      transition: opacity 0.2s ease;
+    }
+    .modal-overlay.active {
+      display: flex;
+      opacity: 1;
+    }
+    .modal {
+      background: var(--panel);
+      border: var(--stroke);
+      box-shadow: 0 20px 25px -5px rgba(0,0,0,.1), 0 10px 10px -5px rgba(0,0,0,.04);
+      border-radius: var(--radius);
+      width: 100%;
+      max-width: 420px;
+      padding: 24px;
+      position: relative;
+      transform: scale(0.95);
+      transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .modal-overlay.active .modal {
+      transform: scale(1);
+    }
+    .modal-title {
+      font-size: 16px;
+      font-weight: 700;
+      margin: 0 0 6px;
+      color: var(--ink);
+    }
+    .modal-desc {
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.4;
+      margin-bottom: 20px;
+    }
+    .form-group {
+      margin-bottom: 16px;
+    }
+    .form-label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--ink);
+      margin-bottom: 6px;
+    }
+    .form-input {
+      width: 100%;
+      background: #ffffff;
+      border: var(--stroke);
+      border-radius: var(--radius-sm);
+      color: var(--ink);
+      padding: 8px 12px;
+      font-size: 13px;
+      outline: none;
+      transition: all 0.15s ease;
+    }
+    .form-input:focus {
+      border-color: var(--blue);
+      box-shadow: 0 0 0 2px rgba(59,130,246,.15);
+    }
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      margin-top: 24px;
+    }
+    .btn {
+      padding: 8px 16px;
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      font-family: inherit;
+      transition: all 0.15s ease;
+    }
+    .btn-cancel {
+      background: var(--panel);
+      color: var(--muted);
+      border: var(--stroke);
+    }
+    .btn-cancel:hover {
+      background: var(--panel-2);
+      color: var(--ink);
+    }
+    .btn-submit {
+      background: var(--blue);
+      color: #ffffff;
+    }
+    .btn-submit:hover {
+      background: var(--blue-hover);
+    }
+
+    /* Screen Transition overlay */
+    #fx-overlay {
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      background: #ffffff;
+      z-index: 10000;
+      display: none;
+      opacity: 0;
+      transition: opacity 0.25s ease;
+    }
+    .fade-out-anim {
+      display: block !important;
+      animation: fade-out 0.3s ease forwards;
+    }
+    @keyframes fade-out {
+      0% { opacity: 0; }
+      100% { opacity: 1; }
+    }
+  </style>
+</head>
+<body>
+  <!-- Standard simple fade transition overlay -->
+  <div id="fx-overlay" aria-hidden="true"></div>
+
+  <div class="dashboard">
+    <header class="topbar">
+      <div>
+        <div class="eyebrow">Knowledge Management System</div>
+        <h1>知識管理系統 ｜ Team KMS</h1>
+        <div class="meta">
+          <span class="pill">User: dev@teamkms.dev</span>
+        </div>
+      </div>
+      <div class="project-state">
+        <div style="display: flex; align-items: center; gap: 20px;">
+          <div style="text-align: right;">
+            <div class="state-label">System Status</div>
+            <div style="display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: var(--green);">
+              <span class="lamp"></span>
+              <span>ONLINE</span>
+            </div>
+          </div>
+          <button class="btn-settings" onclick="triggerTransition('settings.html')">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.1a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+            <span>設定 Settings</span>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <div class="section-heading">知識庫清單 Knowledge Bases</div>
+    <section class="cards-grid">
+      <!-- 松霖國際 -->
+      <div class="card" onclick="triggerTransition('wiki.html')">
+        <div>
+          <div class="card-label">KBase // Active</div>
+          <h2 class="card-value" style="color: var(--blue);">松霖國際</h2>
+          <div class="card-sub">專案主要的知識產出與研究分析，包含 <code>77</code> 個原始檔案，如會議記錄、點交契約與評估清單。</div>
+        </div>
+        <div style="font-size: 11px; color: var(--muted); margin-top: 14px; display: flex; justify-content: space-between; align-items: center;">
+          <span>slug: kb</span>
+          <span style="color: var(--green); font-weight: 600;">● READY</span>
+        </div>
+      </div>
+
+      <!-- smoke-demo -->
+      <div class="card" onclick="triggerTransition('wiki.html?kb=smoke-demo')">
+        <div>
+          <div class="card-label">KBase // Demo</div>
+          <h2 class="card-value" style="color: var(--muted);">smoke-demo</h2>
+          <div class="card-sub">用於系統效能與流程展示的測試用知識庫，主要包含鐵路號誌與工程管制基準的參考文件。</div>
+        </div>
+        <div style="font-size: 11px; color: var(--muted); margin-top: 14px; display: flex; justify-content: space-between; align-items: center;">
+          <span>slug: smoke-demo</span>
+          <span style="color: var(--green); font-weight: 600;">● READY</span>
+        </div>
+      </div>
+
+      <!-- Create new -->
+      <div class="card create-new" onclick="openCreateModal()">
+        <div>
+          <div class="create-icon">+</div>
+          <div class="create-text">建立新知識庫</div>
+          <div class="card-sub" style="margin-top: 6px;">Create a new knowledge base and sync it with your local files.</div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- Create Modal Overlay -->
+  <div class="modal-overlay" id="create-modal" onclick="closeCreateModal(event)">
+    <div class="modal" onclick="event.stopPropagation()">
+      <h3 class="modal-title">建立新知識庫</h3>
+      <p class="modal-desc">輸入知識庫的名稱與對應標識，以開始串接本機文件或數據源。</p>
+      
+      <div class="form-group">
+        <label class="form-label" for="kb-name-input">知識庫名稱</label>
+        <input type="text" id="kb-name-input" class="form-input" placeholder="例如：花蓮光復專案" />
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="kb-slug-input">標識符 Slug (英文)</label>
+        <input type="text" id="kb-slug-input" class="form-input" placeholder="例如：hualien-pv-project" />
+      </div>
+      <div class="form-group" style="margin-bottom: 0;">
+        <label class="form-label" for="kb-desc-input">描述備註</label>
+        <input type="text" id="kb-desc-input" class="form-input" placeholder="關於此知識庫的簡短說明" />
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn btn-cancel" onclick="closeCreateModal(event)">取消</button>
+        <button class="btn btn-submit" onclick="submitCreate(event)">建立</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function triggerTransition(url){
+      const overlay = document.getElementById('fx-overlay');
+      overlay.classList.add('fade-out-anim');
+      setTimeout(()=>{
+        window.location.href = url;
+      },300);
+    }
+
+    function openCreateModal() {
+      const modal = document.getElementById('create-modal');
+      modal.style.display = 'flex';
+      setTimeout(() => {
+        modal.classList.add('active');
+      }, 10);
+    }
+
+    function closeCreateModal(e) {
+      if(e) e.preventDefault();
+      const modal = document.getElementById('create-modal');
+      modal.classList.remove('active');
+      setTimeout(() => {
+        modal.style.display = 'none';
+      }, 200);
+    }
+
+    function submitCreate(e) {
+      e.preventDefault();
+      const name = document.getElementById('kb-name-input').value.trim();
+      const slug = document.getElementById('kb-slug-input').value.trim();
+      
+      if(!name || !slug) {
+        alert('請填寫完整名稱與 Slug 標識！');
+        return;
+      }
+      
+      alert(`知識庫 [${name}] 建立成功！(模擬頁面)`);
+      closeCreateModal();
+    }
+  </script>
+</body>
+</html>

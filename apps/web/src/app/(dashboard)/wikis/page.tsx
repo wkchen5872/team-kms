@@ -3,19 +3,18 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Plus } from "lucide-react";
+import { Plus, Settings as SettingsIcon } from "lucide-react";
 import { toast } from "sonner";
-import { useKBStore } from "@/stores";
+import { useKBStore, useUserStore } from "@/stores";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 
-/** KB list + entry point for creating the first knowledge base (the full in-shell
- *  WikiSelector only appears once you're inside a workspace, so the list page needs
- *  its own Create action — otherwise a fresh account has no way in). */
+/** KB dashboard, aligned to docs/design/default: header + KB cards + create entry. */
 export default function WikisPage() {
   const router = useRouter();
   const kbs = useKBStore((s) => s.knowledgeBases);
   const loading = useKBStore((s) => s.loading);
   const createKB = useKBStore((s) => s.createKB);
+  const email = useUserStore((s) => s.user?.email);
 
   const [open, setOpen] = React.useState(false);
   const [name, setName] = React.useState("");
@@ -38,43 +37,83 @@ export default function WikisPage() {
   };
 
   return (
-    <main className="mx-auto h-full w-full max-w-3xl overflow-y-auto px-6 pt-10">
-      <div className="mb-4 flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Knowledge Bases</h1>
-        <button
-          onClick={() => setOpen(true)}
-          className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:opacity-90 transition-opacity cursor-pointer"
-        >
-          <Plus className="size-4" /> New
-        </button>
-      </div>
-
-      {loading && <p className="text-sm text-muted-foreground">Loading…</p>}
-
-      {!loading && kbs.length > 0 && (
-        <ul className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-card">
-          {kbs.map((kb) => (
-            <li key={kb.id} className="px-4 py-3 hover:bg-accent">
-              <Link href={`/wikis/${kb.slug}`} className="font-medium text-accent-blue hover:underline">
-                {kb.name}
-              </Link>{" "}
-              <code className="text-xs text-muted-foreground">({kb.slug})</code>
-            </li>
-          ))}
-        </ul>
-      )}
-
-      {!loading && !kbs.length && (
-        <div className="mt-8 flex flex-col items-center gap-3 rounded-lg border border-dashed border-border py-12 text-center">
-          <p className="text-sm text-muted-foreground">No knowledge bases yet.</p>
-          <button
-            onClick={() => setOpen(true)}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 transition-opacity cursor-pointer"
-          >
-            <Plus className="size-4" /> Create your first knowledge base
-          </button>
+    <main className="mx-auto h-full w-full max-w-6xl overflow-y-auto px-8 pt-10 pb-16">
+      {/* ── Header ── */}
+      <header className="border-b border-border pb-6">
+        <div className="flex items-start justify-between gap-6">
+          <div>
+            <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
+              Knowledge Management System
+            </p>
+            <h1 className="mt-1 flex items-center gap-3 text-2xl font-extrabold tracking-tight">
+              知識管理系統
+              <span className="text-border">|</span>
+              <span>Team KMS</span>
+            </h1>
+            {email && (
+              <span className="mt-2 inline-block rounded-md bg-secondary px-2 py-1 text-xs text-muted-foreground">
+                User: {email}
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-4">
+            <div className="text-right">
+              <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-muted-foreground">System Status</p>
+              <p className="mt-1 flex items-center justify-end gap-1.5 text-sm font-semibold text-success">
+                <span className="size-2 rounded-full bg-success" /> ONLINE
+              </p>
+            </div>
+            <Link
+              href="/settings"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-sm font-medium hover:bg-accent transition-colors"
+            >
+              <SettingsIcon className="size-4" /> 設定 Settings
+            </Link>
+          </div>
         </div>
-      )}
+      </header>
+
+      {/* ── KB list ── */}
+      <section className="mt-8">
+        <p className="mb-4 text-[11px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
+          知識庫清單 Knowledge Bases
+        </p>
+
+        {loading && <p className="text-sm text-muted-foreground">Loading…</p>}
+
+        {!loading && (
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {kbs.map((kb) => (
+              <Link
+                key={kb.id}
+                href={`/wikis/${kb.slug}`}
+                className="group flex flex-col rounded-xl border border-border bg-card p-6 shadow-sm transition-shadow hover:shadow-md"
+              >
+                <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
+                  KBASE // {kb.slug}
+                </p>
+                <h2 className="mt-2 text-lg font-bold text-accent-blue group-hover:underline">{kb.name}</h2>
+                <div className="mt-auto flex items-center justify-between pt-5">
+                  <code className="text-xs text-muted-foreground">slug: {kb.slug}</code>
+                  <span className="flex items-center gap-1.5 text-xs font-bold text-success">
+                    <span className="size-1.5 rounded-full bg-success" /> READY
+                  </span>
+                </div>
+              </Link>
+            ))}
+
+            {/* create card */}
+            <button
+              onClick={() => setOpen(true)}
+              className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border p-6 text-center text-muted-foreground transition-colors hover:border-accent-blue/50 hover:text-foreground min-h-[180px]"
+            >
+              <Plus className="size-6" />
+              <span className="font-bold text-foreground">建立新知識庫</span>
+              <span className="text-sm">Create a new knowledge base and sync it with your local files.</span>
+            </button>
+          </div>
+        )}
+      </section>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>

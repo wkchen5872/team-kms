@@ -105,6 +105,9 @@ GET /v1/knowledge-bases/:slug/graph
 - 依賴 Supabase Auth（前端直連，取得/刷新 JWT）。
 - 維持 **React 18 / Next 14 / Tailwind v3**（pre-v4 shadcn token 系統：`globals.css` HSL 變數
   + config `hsl(var(--x))` 映射 + `tailwindcss-animate`）。
+- **視覺對齊 `docs/design/default`**：light `:root` 採 slate/blue 色盤（bg #f8fafc、ink #0f172a、
+  accent-blue #3b82f6、radius 12px）+ 狀態 token `--success`/`--warning`；**dark（`.dark`）維持原樣**。
+  無主題切換器、無 ctc（僅現有 light/dark 切換）。
 - 關鍵套件：`next@^14`、`react@^18`、`@supabase/supabase-js`、`zustand`、`next-themes`、
   `lucide-react`、`cmdk`、`framer-motion`、Radix UI、`sonner`、`tus-js-client`、
   `react-markdown`、`mermaid`、`react-force-graph-2d`。

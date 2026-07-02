@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>臺鐵湖口站 CTC｜切換管制入口</title>
+  <style>
+    :root{
+      --bg:#06080c;
+      --panel:#0f1621;
+      --panel2:#151f2e;
+      --ink:#eef5ff;
+      --muted:#91a3b8;
+      --line:#2a3a4d;
+      --blue:#58a6ff;
+      --green:#28d17c;
+      --amber:#ffbf3d;
+      --orange:#ff7a1a;
+      --red:#ff4d5e;
+      --stroke:1px solid rgba(255,255,255,.14);
+      --shadow:0 24px 70px rgba(0,0,0,.46);
+      --radius:14px;
+      --radius-sm:10px;
+    }
+    *{box-sizing:border-box}
+    html,body{margin:0;padding:0;width:100%;height:100%}
+    body{
+      min-height:100vh;
+      background:
+        radial-gradient(circle at 18% 8%, rgba(88,166,255,.20), transparent 34%),
+        radial-gradient(circle at 85% 6%, rgba(255,122,26,.14), transparent 30%),
+        linear-gradient(180deg,#070a10 0%,#0b1018 45%,#05070b 100%);
+      color:var(--ink);
+      font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans TC","Microsoft JhengHei",Arial,sans-serif;
+      display:flex;
+      flex-direction:column;
+      overflow:hidden;
+    }
+    header{
+      min-height:72px;
+      padding:14px 34px;
+      border-bottom:var(--stroke);
+      background:linear-gradient(90deg,rgba(12,17,25,.96),rgba(17,25,37,.94));
+      display:flex;align-items:center;justify-content:space-between;gap:20px;
+      flex-shrink:0;z-index:20;
+      box-shadow:0 10px 34px rgba(0,0,0,.22);
+    }
+    .system-id{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11px;letter-spacing:.14em;color:var(--muted);font-weight:900;text-transform:uppercase}
+    .brand-title{font-size:18px;font-weight:950;letter-spacing:-.02em;margin-top:4px}
+    .header-right{text-align:right}.status{color:#d8ffe9}.status:before{content:"";display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--green);box-shadow:0 0 16px rgba(40,209,124,.78);margin-right:8px}
+
+    .gateway{
+      display:grid;grid-template-columns:minmax(0,1fr) minmax(360px,420px);flex:1;min-height:0;overflow:hidden;
+      padding:22px;gap:22px;
+    }
+    .viewport{
+      position:relative;overflow:hidden;padding:46px;
+      display:flex;flex-direction:column;justify-content:flex-end;
+      border:var(--stroke);border-radius:var(--radius);box-shadow:var(--shadow);
+      background:
+        linear-gradient(180deg,rgba(5,8,13,.12),rgba(5,8,13,.30) 38%,rgba(5,8,13,.84)),
+        linear-gradient(90deg,rgba(5,8,13,.72),rgba(5,8,13,.18) 52%,rgba(5,8,13,.58)),
+        url('Hukou station.jpg');
+      background-size:cover;
+      background-position:center;
+      min-height:0;
+    }
+    .viewport:before{
+      content:"";position:absolute;inset:0;opacity:.20;pointer-events:none;
+      background-image:
+        linear-gradient(rgba(255,255,255,.08) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,.08) 1px, transparent 1px);
+      background-size:54px 54px;
+      mask-image:linear-gradient(180deg,transparent,black 16%,black 82%,transparent);
+    }
+    .photo-badge{
+      position:absolute;left:34px;top:30px;z-index:4;
+      display:flex;gap:10px;align-items:center;flex-wrap:wrap;
+    }
+    .badge{
+      border:1px solid rgba(255,255,255,.16);background:rgba(7,12,20,.62);backdrop-filter:blur(8px);
+      border-radius:999px;padding:7px 11px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+      color:#cfe0f3;font-size:11px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;
+    }
+    .badge.signal:before{content:"";display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--amber);box-shadow:0 0 14px rgba(255,191,61,.8);margin-right:8px;vertical-align:-1px}
+    .viewport-content{position:relative;z-index:6;max-width:780px}
+    .eyebrow{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;letter-spacing:.18em;color:#add4ff;font-weight:950;text-transform:uppercase;margin-bottom:14px;text-shadow:0 8px 30px rgba(0,0,0,.5)}
+    .title{font-size:50px;line-height:1.03;font-weight:950;letter-spacing:-.055em;margin:0 0 16px;text-shadow:0 20px 60px rgba(0,0,0,.55)}
+    .subtitle{font-size:17px;line-height:1.65;color:#d5e2f2;max-width:700px;margin:0 0 26px;text-shadow:0 8px 30px rgba(0,0,0,.65)}
+    .gateway-trigger{display:flex;gap:16px;align-items:center;flex-wrap:wrap}
+    .btn-enter{display:inline-flex;align-items:center;gap:12px;background:#edf4ff;color:#07101b;border:2px solid #edf4ff;text-decoration:none;padding:15px 26px;font-size:14px;font-weight:950;border-radius:var(--radius-sm);box-shadow:8px 8px 0 rgba(88,166,255,.75);transition:.18s ease}
+    .btn-enter:hover{transform:translate(-2px,-2px);box-shadow:11px 11px 0 rgba(255,191,61,.80)}.btn-enter:after{content:"→";font-size:18px}.micro-note{font-size:12px;color:#bdcde1;line-height:1.5;max-width:300px;text-shadow:0 8px 24px rgba(0,0,0,.6)}
+
+    .side-panel{
+      background:linear-gradient(180deg,rgba(17,24,36,.98),rgba(10,15,23,.98));
+      padding:18px;display:flex;flex-direction:column;min-height:0;overflow-y:auto;
+      border:var(--stroke);border-radius:var(--radius);box-shadow:var(--shadow);
+      scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.24) transparent;
+    }
+    .side-panel::-webkit-scrollbar{width:7px}.side-panel::-webkit-scrollbar-thumb{background:rgba(255,255,255,.22);border-radius:999px}.side-panel::-webkit-scrollbar-track{background:transparent}
+    .metric-group{margin-bottom:12px;flex-shrink:0}.metric-group h2{font-size:12px;font-weight:950;letter-spacing:.08em;border-bottom:1px solid rgba(255,255,255,.18);padding-bottom:7px;margin:0 0 8px;color:#dce9f8}
+    .capital-card{border:1px solid rgba(255,255,255,.13);background:rgba(255,255,255,.045);padding:10px 12px;margin-bottom:8px;position:relative;overflow:hidden;border-radius:var(--radius-sm)}
+    .capital-card:before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--blue);opacity:.9}.capital-card.amber:before{background:var(--amber)}.capital-card.orange:before{background:var(--orange)}.capital-card.green:before{background:var(--green)}
+    .cap-label{font-size:11px;color:var(--muted);font-weight:800;margin-bottom:4px}.cap-value{font-size:20px;font-weight:950;letter-spacing:-.03em;margin:0;line-height:1.15}.cap-sub{font-size:11px;color:#9fb2c8;line-height:1.4;margin-top:4px}.summary-split{display:grid;grid-template-columns:1fr 1fr;gap:8px}.summary-split .cap-value{font-size:18px}.contract-no{font-size:16px;letter-spacing:-.02em;word-break:break-word}
+    .audit-section{display:flex;flex-direction:column;margin-top:0;flex-shrink:0}.log-title{font-size:12px;font-weight:950;letter-spacing:.08em;margin:0 0 8px;color:#dce9f8}.log-box{background:#05080c;color:#9cffc8;border:1px solid rgba(40,209,124,.28);border-radius:var(--radius-sm);padding:11px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:10.5px;line-height:1.45;box-shadow:inset 0 0 35px rgba(40,209,124,.04)}.log-line{margin-bottom:6px;color:#86f5b2}.log-line:last-child{margin-bottom:0}.log-line.warn{color:#ffd986}.log-line.info{color:#add4ff}.footer-note{font-size:10.5px;color:#7f90a6;line-height:1.45;padding-top:10px;border-top:1px solid rgba(255,255,255,.10);margin-top:10px;flex-shrink:0}
+    @media(max-width:1060px){body{overflow:auto}.gateway{grid-template-columns:1fr;overflow:visible}.viewport{min-height:680px}.side-panel{overflow:visible}.title{font-size:40px}.summary-split{grid-template-columns:1fr 1fr}}
+    @media(max-width:620px){header{height:auto;display:block;padding:16px 18px}.header-right{text-align:left;margin-top:10px}.gateway{padding:14px;gap:14px}.viewport{padding:28px;min-height:620px}.photo-badge{left:22px;top:22px}.title{font-size:34px}.gateway-trigger{align-items:flex-start}.btn-enter{width:100%;justify-content:center}.side-panel{padding:16px}.summary-split{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+<header>
+  <div>
+    <div class="system-id">TRA_CTC_HUKOU_GATEWAY // CONTROL BOARD ACCESS</div>
+    <div class="brand-title">臺鐵湖口站 CTC 切換管制入口</div>
+  </div>
+  <div class="header-right">
+    <div class="system-id">資料口徑：預定進度 / 切換計畫</div>
+    <div class="system-id status">BASELINE LOADED 2026/06/28</div>
+  </div>
+</header>
+
+<div class="gateway">
+  <main class="viewport">
+    <div class="photo-badge" aria-hidden="true">
+      <div class="badge signal">Hukou Station</div>
+      <div class="badge">CTC Change Control</div>
+    </div>
+
+    <section class="viewport-content">
+      <div class="eyebrow">Hukou CTC Switching Control Gateway</div>
+      <h1 class="title">湖口站 CTC 變更專案<br>進度監控入口</h1>
+      <p class="subtitle">整合合約 S Curve 預定進度與現場切換計畫，進入後可檢視 7 月帳面進度高峰、9 月切換管制窗口、主要權重工項與協作場域負荷。</p>
+      <div class="gateway-trigger">
+        <a class="btn-enter" href="TRA_Hukou_CTC_Centered_Terminal_V3.html">進入鐵路號誌進度監控盤</a>
+        <div class="micro-note">本入口頁僅顯示管制摘要；完整分析請進入主監控盤。</div>
+      </div>
+    </section>
+  </main>
+
+  <aside class="side-panel">
+    <section class="metric-group">
+      <h2>專案基準摘要</h2>
+      <div class="capital-card green">
+        <div class="cap-label">契約編號</div>
+        <div class="cap-value contract-no">L0508P1107U / L0514P1061V</div>
+        <div class="cap-sub">湖口站 CTC 變更案資料基準</div>
+      </div>
+      <div class="capital-card">
+        <div class="cap-label">合約金額</div>
+        <div class="cap-value">NT$ 8,502,500</div>
+        <div class="cap-sub">依 S Curve 合約總價欄位</div>
+      </div>
+    </section>
+
+    <section class="metric-group">
+      <h2>預定進度節點</h2>
+      <div class="summary-split">
+        <div class="capital-card amber">
+          <div class="cap-label">6 月累計預定</div>
+          <div class="cap-value">35.32%</div>
+          <div class="cap-sub">非實際完成率</div>
+        </div>
+        <div class="capital-card orange">
+          <div class="cap-label">7 月累計預定</div>
+          <div class="cap-value">68.76%</div>
+          <div class="cap-sub">單月 +33.45 p.p.</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="metric-group">
+      <h2>切換管制摘要</h2>
+      <div class="capital-card orange">
+        <div class="cap-label">9 月切換窗口</div>
+        <div class="cap-value">09/21–09/23</div>
+        <div class="cap-sub">Center 切換後，事前測試與啟用會試緊接發生</div>
+      </div>
+      <div class="capital-card">
+        <div class="cap-label">竣工目標</div>
+        <div class="cap-value">2026/09/27</div>
+        <div class="cap-sub">完整節點請進入主監控盤檢視</div>
+      </div>
+    </section>
+
+    <section class="audit-section">
+      <h2 class="log-title">管制提示</h2>
+      <div class="log-box" id="control-log">
+        <div class="log-line info">[BASE] 已載入：S Curve 預定進度與切換計畫</div>
+        <div class="log-line warn">[JUL] 7 月為合約進度認列高峰：+33.45 p.p.</div>
+        <div class="log-line warn">[SEP] 9/21–9/23 為現場切換連續驗證窗口</div>
+        <div class="log-line">[NOTE] 目前顯示預定資料，尚未混入實績判斷</div>
+      </div>
+    </section>
+    <div class="footer-note">說明：本頁為入口頁，供快速確認資料口徑與關鍵節點；不取代完整專案監控盤。</div>
+  </aside>
+</div>
+</body>
+</html>

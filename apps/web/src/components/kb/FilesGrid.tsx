@@ -122,23 +122,32 @@ function getSourceUrl(doc: DocumentListItem | null): string | null {
 }
 
 function docIcon(ft: string) {
-  if (ft === 'pdf') return <FileText className="size-8 text-red-400/70" />
-  if (['png', 'jpg', 'jpeg', 'webp', 'gif'].includes(ft)) return <Image className="size-8 text-violet-400/70" />
-  if (['xlsx', 'xls', 'csv'].includes(ft)) return <Sheet className="size-8 text-emerald-500/70" />
-  if (['pptx', 'ppt', 'docx', 'doc'].includes(ft)) return <Presentation className="size-8 text-orange-400/70" />
-  if (['html', 'htm'].includes(ft)) return <FileCode className="size-8 text-sky-400/70" />
-  if (['md', 'txt'].includes(ft)) return <NotepadText className="size-8 text-muted-foreground/50" />
-  return <FileText className="size-8 text-muted-foreground/40" />
+  if (ft === 'pdf') return <FileText className="size-8 text-destructive" />
+  if (['png', 'jpg', 'jpeg', 'webp', 'gif'].includes(ft)) return <Image className="size-8 text-warning" />
+  if (['xlsx', 'xls', 'csv'].includes(ft)) return <Sheet className="size-8 text-success" />
+  if (['pptx', 'ppt', 'docx', 'doc'].includes(ft)) return <Presentation className="size-8 text-accent-blue" />
+  if (['html', 'htm'].includes(ft)) return <FileCode className="size-8 text-accent-blue" />
+  if (['md', 'txt'].includes(ft)) return <NotepadText className="size-8 text-success" />
+  return <FileText className="size-8 text-muted-foreground/50" />
 }
 
 function docIconSmall(ft: string) {
-  if (ft === 'pdf') return <FileText className="size-3.5 text-red-400/70" />
-  if (['png', 'jpg', 'jpeg', 'webp', 'gif'].includes(ft)) return <Image className="size-3.5 text-violet-400/70" />
-  if (['xlsx', 'xls', 'csv'].includes(ft)) return <Sheet className="size-3.5 text-emerald-500/70" />
-  if (['pptx', 'ppt', 'docx', 'doc'].includes(ft)) return <Presentation className="size-3.5 text-orange-400/70" />
-  if (['html', 'htm'].includes(ft)) return <FileCode className="size-3.5 text-sky-400/70" />
-  if (['md', 'txt'].includes(ft)) return <NotepadText className="size-3.5 text-muted-foreground/50" />
-  return <FileText className="size-3.5 text-muted-foreground/40" />
+  if (ft === 'pdf') return <FileText className="size-3.5 text-destructive" />
+  if (['png', 'jpg', 'jpeg', 'webp', 'gif'].includes(ft)) return <Image className="size-3.5 text-warning" />
+  if (['xlsx', 'xls', 'csv'].includes(ft)) return <Sheet className="size-3.5 text-success" />
+  if (['pptx', 'ppt', 'docx', 'doc'].includes(ft)) return <Presentation className="size-3.5 text-accent-blue" />
+  if (['html', 'htm'].includes(ft)) return <FileCode className="size-3.5 text-accent-blue" />
+  if (['md', 'txt'].includes(ft)) return <NotepadText className="size-3.5 text-success" />
+  return <FileText className="size-3.5 text-muted-foreground/50" />
+}
+
+/** Human-readable byte size for the file-type pill. */
+function humanSize(bytes?: number | null): string {
+  if (!bytes || bytes <= 0) return ''
+  const u = ['B', 'KB', 'MB', 'GB']
+  let n = bytes, i = 0
+  while (n >= 1024 && i < u.length - 1) { n /= 1024; i++ }
+  return `${n < 10 && i > 0 ? n.toFixed(1) : Math.round(n)} ${u[i]}`
 }
 
 /* ------------------------------------------------------------------ */
@@ -531,9 +540,9 @@ export function FilesGrid({
               )}
             </div>
 
-            <button onClick={handleUploadHere} className="flex items-center gap-1.5 p-1.5 text-muted-foreground hover:text-foreground hover:bg-accent rounded-md transition-colors cursor-pointer">
+            <button onClick={handleUploadHere} className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:opacity-90 transition-opacity cursor-pointer">
               <Upload className="size-3.5" />
-              <span className="text-xs">Upload</span>
+              <span>上傳</span>
             </button>
 
             <button
@@ -784,14 +793,14 @@ function FolderCard({ name, path, onNavigate, onDropDocuments, onDropFiles, onDe
         }
       }}
       className={cn(
-        'group relative rounded-lg border cursor-pointer transition-colors flex flex-col overflow-hidden h-full',
+        'group relative rounded-xl border bg-card shadow-sm cursor-pointer transition-shadow flex flex-col overflow-hidden h-full',
         dragOver
           ? 'border-primary bg-primary/10 ring-2 ring-primary/30'
-          : 'border-border hover:bg-muted/50',
+          : 'border-border hover:shadow-md',
       )}
     >
-      <div className="flex items-center justify-center aspect-square">
-        <Folder className={cn('size-12', dragOver ? 'text-primary' : 'text-muted-foreground/70')} />
+      <div className="flex items-center justify-center aspect-square bg-secondary">
+        <Folder className={cn('size-12', dragOver ? 'text-primary' : 'text-accent-blue/70')} />
       </div>
       <div className="px-2 py-1.5">
         {renaming ? (
@@ -885,8 +894,8 @@ function DocumentCard({ doc, onOpen, onDelete, onRename, selected, selectionActi
           onDragEnd={handleDragEnd}
           onClick={handleCardClick}
           className={cn(
-            'group relative rounded-lg border cursor-pointer transition-colors flex flex-col overflow-hidden h-full',
-            selected ? 'border-primary ring-2 ring-primary/40 bg-primary/5' : 'border-border hover:bg-accent/40',
+            'group relative rounded-xl border bg-card shadow-sm cursor-pointer transition-shadow flex flex-col overflow-hidden h-full',
+            selected ? 'border-primary ring-2 ring-primary/40' : 'border-border hover:shadow-md',
             dragging && 'opacity-40',
           )}
         >
@@ -905,8 +914,8 @@ function DocumentCard({ doc, onOpen, onDelete, onRename, selected, selectionActi
               <Check className="size-3" />
             </button>
           )}
-          <div className="relative flex items-center justify-center bg-muted/30 aspect-square overflow-hidden">
-            <span className={cn('text-muted-foreground/40', isProcessing && 'opacity-40')}>{docIcon(doc.file_type)}</span>
+          <div className="relative flex items-center justify-center bg-secondary aspect-square overflow-hidden">
+            <span className={cn(isProcessing && 'opacity-40')}>{docIcon(doc.file_type)}</span>
             {isProcessing && <div className="absolute inset-0 flex items-center justify-center"><Loader2 className="size-5 text-muted-foreground animate-spin" /></div>}
           </div>
           <div className="px-2 py-1.5 flex flex-col gap-0.5">
@@ -915,11 +924,16 @@ function DocumentCard({ doc, onOpen, onDelete, onRename, selected, selectionActi
             ) : (
               <span className="text-xs text-foreground line-clamp-2 leading-tight">{doc.title || doc.filename}</span>
             )}
-            <div className="flex items-center gap-1">
-              <span className="text-[9px] text-muted-foreground/50 uppercase">{doc.file_type}</span>
-              {doc.page_count && <span className="text-[9px] text-muted-foreground/40">· {doc.page_count}p</span>}
+            <div className="flex items-center justify-between gap-1">
+              <span className="rounded bg-secondary px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-muted-foreground">{doc.file_type}</span>
+              {isProcessing ? (
+                <span className="text-[9px] font-semibold text-accent-blue">EXTRACTING</span>
+              ) : doc.status === 'failed' ? (
+                <span className="text-[9px] font-medium text-destructive">Failed</span>
+              ) : (
+                <span className="text-[9px] text-muted-foreground/60">{humanSize(doc.file_size) || (doc.page_count ? `${doc.page_count}p` : '')}</span>
+              )}
             </div>
-            {doc.status === 'failed' && <span className="text-[9px] font-medium text-destructive/80">Failed</span>}
           </div>
         </div>
       </ContextMenuTrigger>
@@ -940,9 +954,9 @@ function NewCard({ onCreateNote, onUpload, onCreateFolder }: { onCreateNote: () 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <div className="group rounded-lg border border-dashed border-border hover:border-foreground/20 cursor-pointer transition-colors flex flex-col overflow-hidden hover:bg-muted/30 h-full">
+        <div className="group rounded-xl border border-dashed border-border hover:border-accent-blue/40 cursor-pointer transition-colors flex flex-col overflow-hidden hover:bg-secondary/50 h-full">
           <div className="flex items-center justify-center aspect-square">
-            <Plus className="size-5 text-muted-foreground/40 group-hover:text-muted-foreground/60 transition-colors" />
+            <Plus className="size-5 text-muted-foreground/50 group-hover:text-accent-blue transition-colors" />
           </div>
           <div className="px-2 py-1.5 text-center">
             <span className="text-xs font-medium text-muted-foreground/50">New</span>

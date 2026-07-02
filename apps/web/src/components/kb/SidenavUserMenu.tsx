@@ -38,11 +38,14 @@ export function SidenavUserMenu() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground">
-          <div className="flex size-5 shrink-0 items-center justify-center rounded border border-border bg-muted">
-            <span className="text-[8px] font-medium">{initials}</span>
+        <button className="flex w-full items-center gap-2.5 rounded-lg px-2 py-2 text-left transition-colors hover:bg-accent">
+          <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-accent-blue/15 text-accent-blue">
+            <span className="text-[11px] font-bold">{initials}</span>
           </div>
-          <span className="truncate">{user.email}</span>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-xs font-semibold text-foreground">{user.email}</p>
+            <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">Access: Admin</p>
+          </div>
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" side="top" className="w-48">

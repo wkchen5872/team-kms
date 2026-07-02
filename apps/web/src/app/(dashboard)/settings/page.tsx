@@ -71,24 +71,47 @@ export default function SettingsPage() {
   }
 
   return (
-    <main className="mx-auto h-full w-full max-w-2xl overflow-y-auto px-6 pt-10">
+    <main className="mx-auto h-full w-full max-w-2xl overflow-y-auto px-6 py-10">
       <Link href="/wikis" className="mb-6 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-        <ArrowLeft className="size-4" /> Back
+        <ArrowLeft className="size-4" /> 返回清單
       </Link>
-      <h1 className="mb-6 text-2xl font-bold">Settings</h1>
+
+      <div className="rounded-xl border border-border bg-card p-8 shadow-sm">
+        <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-muted-foreground">Preferences &amp; Settings</p>
+        <h1 className="mb-8 mt-1 flex items-center gap-3 text-2xl font-extrabold tracking-tight">
+          系統設定 <span className="text-border">|</span> Settings
+        </h1>
 
       <section className="mb-8">
-        <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">Appearance</h2>
+        <h2 className="mb-3 border-b border-border pb-2 text-sm font-bold text-foreground">
+          <span className="text-muted-foreground">01</span>　外觀模式 <span className="text-muted-foreground">APPEARANCE</span>
+        </h2>
         {mounted && (
-          <Button variant="outline" onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>
-            {theme === "dark" ? <Sun className="mr-2 size-4" /> : <Moon className="mr-2 size-4" />}
-            {theme === "dark" ? "Light mode" : "Dark mode"}
-          </Button>
+          <div className="flex items-center justify-between gap-4 rounded-lg bg-secondary px-4 py-3">
+            <div className="min-w-0">
+              <p className="font-semibold">{theme === "dark" ? "深色主題" : "淺色主題 (標準)"}</p>
+              <p className="text-sm text-muted-foreground">
+                {theme === "dark"
+                  ? "低光度環境的深色介面。點擊右側切換回淺色。"
+                  : "使用標準現代的 Light Mode 風格，適合一般日常辦公室高亮度環境。"}
+              </p>
+            </div>
+            <button
+              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+              title="切換淺色 / 深色"
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-accent-blue px-4 py-2 text-xs font-bold uppercase tracking-wide text-white transition-opacity hover:opacity-90"
+            >
+              {theme === "dark" ? <Moon className="size-3.5" /> : <Sun className="size-3.5" />}
+              {theme === "dark" ? "Dark Theme Active" : "Light Theme Active"}
+            </button>
+          </div>
         )}
       </section>
 
       <section>
-        <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">API Keys</h2>
+        <h2 className="mb-3 border-b border-border pb-2 text-sm font-bold text-foreground">
+          <span className="text-muted-foreground">02</span>　外部對接金鑰 <span className="text-muted-foreground">API KEYS</span>
+        </h2>
         <p className="mb-3 text-sm text-muted-foreground">
           Create a token to connect Claude via MCP. The token is shown once — copy it now.
         </p>
@@ -136,6 +159,7 @@ export default function SettingsPage() {
           {!keys.length && <li className="px-3 py-3 text-sm text-muted-foreground">No API keys yet.</li>}
         </ul>
       </section>
+      </div>
     </main>
   );
 }

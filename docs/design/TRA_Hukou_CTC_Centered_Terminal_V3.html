@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>臺鐵湖口站 CTC 變更專案｜鐵路號誌進度監控盤</title>
+  <style>
+    :root{
+      --bg:#080b10;
+      --panel:#111722;
+      --panel-2:#151e2b;
+      --ink:#edf4ff;
+      --muted:#8fa1b6;
+      --line:#2a3a4d;
+      --rail:#b7c4d4;
+      --green:#28d17c;
+      --amber:#ffbf3d;
+      --red:#ff4d5e;
+      --gray:#657487;
+      --blue:#58a6ff;
+      --orange:#ff7a1a;
+      --shadow:0 18px 50px rgba(0,0,0,.35);
+      --radius:22px;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      background:
+        radial-gradient(circle at 18% 0%, rgba(88,166,255,.18), transparent 32%),
+        radial-gradient(circle at 90% 8%, rgba(255,122,26,.16), transparent 28%),
+        linear-gradient(180deg,#070a0f 0%,#0b1018 45%,#06080c 100%);
+      color:var(--ink);
+      font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans TC","Microsoft JhengHei",Arial,sans-serif;
+      padding:28px;
+    }
+    .dashboard{max-width:1240px;margin:0 auto}
+    .topbar{
+      display:grid;grid-template-columns:1fr auto;gap:24px;align-items:center;
+      border:1px solid rgba(255,255,255,.14);
+      background:linear-gradient(135deg,rgba(17,23,34,.96),rgba(18,29,43,.92));
+      box-shadow:var(--shadow);border-radius:var(--radius);padding:24px 26px;position:relative;overflow:hidden;
+    }
+    .topbar:before{content:"";position:absolute;left:0;right:0;top:0;height:4px;background:linear-gradient(90deg,var(--green),var(--amber),var(--orange),var(--blue))}
+    .eyebrow{color:var(--muted);font-size:12px;letter-spacing:.18em;font-weight:800;text-transform:uppercase;margin-bottom:8px}
+    h1{font-size:30px;line-height:1.2;margin:0 0 10px;font-weight:900;letter-spacing:-.03em}
+    .meta{display:flex;flex-wrap:wrap;gap:10px;color:#b9c8d9;font-size:13px}
+    .pill{border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.05);border-radius:999px;padding:7px 11px;white-space:nowrap}
+    .project-state{text-align:right;min-width:250px}
+    .state-label{font-size:12px;color:var(--muted);font-weight:800;letter-spacing:.12em;margin-bottom:8px}
+    .state-box{display:inline-flex;align-items:center;gap:10px;border:1px solid rgba(255,191,61,.35);background:rgba(255,191,61,.10);padding:12px 16px;border-radius:999px;font-size:18px;font-weight:900;color:#fff3c8}
+    .lamp{width:15px;height:15px;border-radius:50%;background:var(--amber);box-shadow:0 0 0 4px rgba(255,191,61,.16),0 0 20px rgba(255,191,61,.75)}
+
+    .section-heading{display:flex;align-items:center;gap:12px;margin:28px 2px 12px;color:#dceaff;font-size:13px;font-weight:900;letter-spacing:.05em}
+    .section-heading:before{content:"";width:11px;height:11px;border-radius:50%;background:var(--blue);box-shadow:0 0 18px rgba(88,166,255,.85)}
+
+    .grid{display:grid;grid-template-columns:1.2fr .8fr;gap:22px;margin-top:22px}
+    .cards{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:12px;margin-bottom:28px}
+    .card,.panel{border:1px solid rgba(255,255,255,.12);background:linear-gradient(180deg,rgba(21,30,43,.94),rgba(15,22,33,.94));border-radius:var(--radius);box-shadow:var(--shadow)}
+    .card{padding:18px;min-height:116px;position:relative;overflow:hidden}
+    .card:after{content:"";position:absolute;right:-30px;bottom:-34px;width:110px;height:110px;border:1px solid rgba(255,255,255,.07);border-radius:50%}
+    .card-label{color:var(--muted);font-size:12px;font-weight:800;letter-spacing:.08em;margin-bottom:10px}
+    .card-value{font-size:25px;font-weight:950;letter-spacing:-.03em}
+    .card-sub{font-size:12px;color:#9db0c6;margin-top:7px;line-height:1.45}
+    .panel{padding:22px;overflow:hidden}
+    .panel-title{display:flex;justify-content:space-between;align-items:flex-start;gap:18px;margin-bottom:14px}
+    .panel-title h2{font-size:17px;margin:0;font-weight:900;letter-spacing:-.01em}
+    .panel-note{color:var(--muted);font-size:12px;line-height:1.5;max-width:580px}
+
+    .route-panel{grid-column:1 / -1;padding:24px 22px 28px;margin-top:22px}
+    .route-wrap{position:relative;margin:22px 4px 0;padding:18px 0 8px;overflow-x:auto}
+    .route{display:grid;grid-template-columns:repeat(10,minmax(112px,1fr));gap:0;min-width:1140px;position:relative;align-items:start;padding-top:10px}
+    .route:before{content:"";position:absolute;left:58px;right:58px;top:39px;height:10px;border-radius:999px;background:linear-gradient(90deg,rgba(40,209,124,.95) 0%,rgba(40,209,124,.95) 34%,rgba(255,191,61,.95) 34%,rgba(255,191,61,.95) 62%,rgba(255,122,26,.95) 62%,rgba(255,122,26,.95) 82%,rgba(101,116,135,.75) 82%,rgba(101,116,135,.75) 100%);box-shadow:inset 0 2px 0 rgba(255,255,255,.35),0 0 26px rgba(88,166,255,.12)}
+    .station{position:relative;text-align:center;z-index:2;cursor:pointer;padding:0 8px}
+    .signal{width:48px;height:48px;border-radius:50%;margin:0 auto 12px;background:#0b0f16;border:4px solid #d4dfeb;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 20px rgba(0,0,0,.42)}
+    .signal:after{content:"";width:21px;height:21px;border-radius:50%;display:block;background:var(--gray);box-shadow:0 0 18px rgba(101,116,135,.6)}
+    .station.done .signal:after{background:var(--green);box-shadow:0 0 26px rgba(40,209,124,.85)}
+    .station.watch .signal:after{background:var(--amber);box-shadow:0 0 26px rgba(255,191,61,.9)}
+    .station.future .signal:after{background:#566274;box-shadow:none}
+    .station.critical .signal{border-color:#ffead1}.station.critical .signal:after{background:var(--orange);box-shadow:0 0 30px rgba(255,122,26,.95)}
+    .st-date{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;font-weight:900;color:#d9e7f7;margin-bottom:5px}
+    .st-name{font-size:13px;font-weight:850;line-height:1.25;min-height:34px}
+    .st-role{display:block;color:#9eb0c4;font-size:10.5px;line-height:1.25;min-height:28px;margin-top:3px}
+    .st-tag{display:inline-block;margin-top:8px;border:1px solid rgba(255,255,255,.16);border-radius:999px;padding:3px 8px;font-size:11px;color:#b8c8db;background:rgba(255,255,255,.04)}
+    .st-compress{display:inline-block;margin-top:5px;border-radius:999px;padding:3px 8px;font-size:10px;color:#ffd7b6;background:rgba(255,122,26,.12);border:1px solid rgba(255,122,26,.32)}
+
+    .curve-wrap{height:360px;position:relative;margin-top:8px}
+    svg{width:100%;height:100%;display:block}
+    .axis{stroke:rgba(255,255,255,.18);stroke-width:1}.gridline{stroke:rgba(255,255,255,.08);stroke-width:1;stroke-dasharray:4 6}.curve{fill:none;stroke:var(--blue);stroke-width:4;filter:drop-shadow(0 0 10px rgba(88,166,255,.45))}.curve-fill{fill:url(#curveGradient);opacity:.52}.dot{fill:#0e1521;stroke:var(--blue);stroke-width:4}.dot-current{stroke:var(--amber);filter:drop-shadow(0 0 10px rgba(255,191,61,.7))}.chart-label{fill:#c8d6e6;font-size:12px;font-weight:700}.chart-small{fill:#8fa1b6;font-size:11px}.milestone-line{stroke:rgba(255,122,26,.65);stroke-width:1.5;stroke-dasharray:4 5}.milestone-text{fill:#ffd4b7;font-size:11px;font-weight:800}
+
+    .risk-list{display:grid;gap:12px;margin-top:8px}.risk{display:grid;grid-template-columns:auto 1fr;gap:12px;padding:13px;border:1px solid rgba(255,255,255,.10);border-radius:16px;background:rgba(255,255,255,.04)}.risk-icon{width:34px;height:34px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-weight:950}.risk.ok .risk-icon{background:rgba(40,209,124,.14);color:#79ffc0}.risk.watch .risk-icon{background:rgba(255,191,61,.15);color:#ffd986}.risk.note .risk-icon{background:rgba(88,166,255,.14);color:#add4ff}.risk.hot .risk-icon{background:rgba(255,122,26,.15);color:#ffc296}.risk-title{font-weight:900;margin-bottom:3px}.risk-text{font-size:12px;color:#aabbd0;line-height:1.45}
+
+    .detail{margin-top:18px;border:1px solid rgba(255,255,255,.10);border-radius:18px;background:rgba(8,12,18,.56);padding:16px;display:grid;grid-template-columns:180px 1fr;gap:16px;align-items:start}.detail-date{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:26px;font-weight:950;color:#fff}.detail-status{margin-top:8px}.detail h3{margin:0 0 7px;font-size:18px}.detail p{margin:0;color:#aebed1;line-height:1.55;font-size:13px}.badge{display:inline-flex;align-items:center;justify-content:center;border-radius:999px;padding:5px 9px;font-size:11px;font-weight:950;letter-spacing:.04em}.badge.done{color:#caffdf;background:rgba(40,209,124,.13);border:1px solid rgba(40,209,124,.35)}.badge.watch{color:#ffe2a1;background:rgba(255,191,61,.13);border:1px solid rgba(255,191,61,.35)}.badge.hot{color:#ffd1b2;background:rgba(255,122,26,.13);border:1px solid rgba(255,122,26,.40)}
+
+    .slope-card{display:grid;grid-template-columns:.85fr 1.15fr;gap:18px;margin-top:22px}
+    .hero-metric{border:1px solid rgba(255,191,61,.22);border-radius:20px;padding:18px;background:linear-gradient(180deg,rgba(255,191,61,.12),rgba(255,122,26,.08));position:relative;overflow:hidden}
+    .hero-metric:after{content:"";position:absolute;right:-44px;bottom:-48px;width:150px;height:150px;border-radius:50%;border:1px solid rgba(255,255,255,.08)}
+    .hero-label{color:#ffe0a3;font-size:12px;font-weight:900;letter-spacing:.12em;margin-bottom:8px}.hero-value{font-size:42px;font-weight:950;letter-spacing:-.04em;color:#fff4d8}.hero-sub{font-size:12px;color:#cbb994;line-height:1.55;margin-top:8px}
+    .slope-list{display:grid;gap:10px}.slope-row{display:grid;grid-template-columns:54px 1fr 72px;align-items:center;gap:10px}.slope-month{font-size:12px;color:#cbd8e7;font-weight:900}.slope-track{height:16px;border-radius:999px;background:rgba(255,255,255,.08);overflow:hidden}.slope-fill{height:100%;border-radius:999px;background:rgba(88,166,255,.75)}.slope-row.max .slope-fill{background:linear-gradient(90deg,var(--amber),var(--orange));box-shadow:0 0 18px rgba(255,122,26,.35)}.slope-num{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;color:#d8e7f8;font-weight:900;text-align:right}
+
+    .pressure-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:22px}.pressure-card{border:1px solid rgba(255,255,255,.10);border-radius:18px;padding:16px;background:rgba(255,255,255,.04)}.pressure-title{font-weight:950;margin-bottom:8px}.pressure-desc{color:#aabbd0;font-size:12px;line-height:1.55}.timeline-compress{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:14px}.t-node{position:relative;border:1px solid rgba(255,255,255,.13);border-radius:16px;padding:12px;background:rgba(8,12,18,.56);min-height:120px}.t-node:before{content:"";position:absolute;left:50%;top:-8px;width:12px;height:12px;border-radius:50%;transform:translateX(-50%);background:var(--orange);box-shadow:0 0 18px rgba(255,122,26,.85)}.t-date{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:#fff;font-weight:950;margin-bottom:6px}.t-name{font-size:12px;font-weight:900;line-height:1.35}.t-gap{margin-top:10px;color:#ffcfae;font-size:11px;font-weight:900}.density-bars{display:grid;gap:9px;margin-top:12px}.density-row{display:grid;grid-template-columns:52px 1fr 56px;gap:10px;align-items:center}.density-label{font-size:12px;color:#cbd8e7;font-weight:900}.density-track{height:14px;background:rgba(255,255,255,.08);border-radius:999px;overflow:hidden}.density-fill{height:100%;border-radius:999px;background:rgba(255,191,61,.78)}.density-row.hot .density-fill{background:linear-gradient(90deg,var(--amber),var(--orange));box-shadow:0 0 18px rgba(255,122,26,.3)}.density-num{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;text-align:right;font-size:12px;font-weight:900;color:#dce9f7}
+
+    .weight-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}.bar-stack{display:grid;gap:10px;margin-top:10px}.weight-row{display:grid;grid-template-columns:1fr 90px;gap:12px;align-items:center}.weight-name{font-size:12px;color:#dce8f6;font-weight:850;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.weight-track{height:13px;border-radius:999px;background:rgba(255,255,255,.08);overflow:hidden;margin-top:5px}.weight-fill{height:100%;border-radius:999px;background:rgba(88,166,255,.78)}.weight-num{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;text-align:right;font-size:12px;color:#dce9f7;font-weight:900}
+    .matrix{display:grid;grid-template-columns:1fr 1fr;gap:18px}.matrix-list{display:grid;gap:10px;margin-top:10px}.matrix-row{display:grid;grid-template-columns:1fr 54px;gap:10px;align-items:center;border:1px solid rgba(255,255,255,.10);border-radius:14px;padding:10px;background:rgba(255,255,255,.04)}.matrix-name{font-size:12px;font-weight:900;color:#dde9f7}.matrix-num{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;text-align:center;font-size:16px;font-weight:950;color:#fff}
+    .gap-table{display:grid;gap:9px;margin-top:12px}.gap-row{display:grid;grid-template-columns:86px 98px 88px 1fr;gap:8px;align-items:center;border:1px solid rgba(255,255,255,.10);border-radius:14px;padding:10px;background:rgba(255,255,255,.04)}.gap-head{color:#d8e7f6;font-weight:950;background:rgba(88,166,255,.10)}.gap-cell{font-size:12px;color:#b9c8d9;line-height:1.4}.gap-row.alert{border-color:rgba(255,122,26,.30);background:rgba(255,122,26,.07)}
+    .footer{color:#7f8fa3;font-size:11px;line-height:1.55;margin-top:18px;text-align:center}
+    @media (max-width:900px){body{padding:16px}.topbar{grid-template-columns:1fr}.project-state{text-align:left}.cards{grid-template-columns:repeat(2,1fr)}.grid,.slope-card,.pressure-grid,.weight-grid,.matrix{grid-template-columns:1fr}.detail{grid-template-columns:1fr}.panel-title{display:block}.panel-note{margin-top:6px}.card-value{font-size:22px}.timeline-compress{grid-template-columns:1fr}.gap-row{grid-template-columns:1fr}}
+
+
+    /* --- 新增：左上固定返回入口按鈕 --- */
+    .back-btn-container{
+      position:fixed;
+      top:18px;
+      left:18px;
+      width:58px;
+      height:58px;
+      z-index:9999;
+      cursor:pointer;
+      display:flex;
+      justify-content:center;
+      align-items:center;
+      border:0;
+      background:transparent;
+      padding:0;
+      color:#edf4ff;
+    }
+    .back-btn-container:focus-visible{outline:2px solid var(--blue);outline-offset:8px;border-radius:14px}
+    .rotating-square{
+      position:absolute;
+      width:100%;
+      height:100%;
+      border:1px solid rgba(255,255,255,.28);
+      border-radius:16px;
+      background:linear-gradient(135deg,rgba(17,23,34,.82),rgba(18,29,43,.58));
+      backdrop-filter:blur(10px);
+      animation:slow-rotate 28s linear infinite;
+      box-shadow:0 14px 34px rgba(0,0,0,.36),0 0 0 1px rgba(88,166,255,.13) inset;
+    }
+    .rotating-square:after{
+      content:"";
+      position:absolute;
+      inset:8px;
+      border:1px solid rgba(88,166,255,.32);
+      border-radius:11px;
+      box-shadow:0 0 18px rgba(88,166,255,.16);
+    }
+    @keyframes slow-rotate{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+    .back-icon{
+      position:relative;
+      z-index:2;
+      width:25px;
+      height:25px;
+      pointer-events:none;
+      filter:drop-shadow(0 0 8px rgba(88,166,255,.45));
+    }
+    .back-btn-container:hover .rotating-square{
+      border-color:rgba(255,191,61,.56);
+      box-shadow:0 18px 42px rgba(0,0,0,.42),0 0 24px rgba(255,191,61,.16) inset;
+      animation-duration:8s;
+    }
+    .back-btn-label{
+      position:absolute;
+      left:68px;
+      top:50%;
+      transform:translateY(-50%) translateX(-8px);
+      opacity:0;
+      pointer-events:none;
+      white-space:nowrap;
+      border:1px solid rgba(255,255,255,.14);
+      background:rgba(8,12,18,.86);
+      color:#dceaff;
+      border-radius:999px;
+      padding:7px 10px;
+      font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+      font-size:11px;
+      font-weight:900;
+      letter-spacing:.08em;
+      transition:.18s ease;
+      box-shadow:0 12px 28px rgba(0,0,0,.32);
+    }
+    .back-btn-container:hover .back-btn-label{opacity:1;transform:translateY(-50%) translateX(0)}
+
+    /* --- 新增：返回入口轉場特效 --- */
+    #fx-overlay{
+      position:fixed;
+      inset:0;
+      width:100vw;
+      height:100vh;
+      background:#030508;
+      z-index:10000;
+      display:none;
+      overflow:hidden;
+      transform-origin:center;
+    }
+    .scanline{
+      width:100%;
+      height:100%;
+      background:
+        linear-gradient(to bottom,rgba(255,255,255,0) 50%,rgba(255,255,255,.045) 50%),
+        linear-gradient(90deg,rgba(88,166,255,.12),rgba(255,191,61,.035),rgba(255,122,26,.10));
+      background-size:100% 4px,4px 100%;
+      pointer-events:none;
+    }
+    .glitch-line{
+      position:absolute;
+      top:50%;
+      left:0;
+      width:100%;
+      height:2px;
+      background:#edf4ff;
+      box-shadow:0 0 24px rgba(88,166,255,.88),0 0 42px rgba(255,191,61,.42);
+      transform:translateY(-50%) scaleY(0);
+    }
+    .reboot-anim{
+      display:block!important;
+      animation:screen-burn .6s ease-in forwards;
+    }
+    .reboot-anim .glitch-line{animation:glitch-flash .6s ease-in forwards}
+    @keyframes screen-burn{
+      0%{opacity:0}
+      10%{opacity:1}
+      80%{transform:scaleY(1)}
+      100%{transform:scaleY(.006) scaleX(1.4);opacity:1}
+    }
+    @keyframes glitch-flash{
+      0%{transform:translateY(-50%) scaleY(0)}
+      28%{transform:translateY(-50%) scaleY(1)}
+      100%{transform:translateY(-50%) scaleY(.2)}
+    }
+
+  </style>
+</head>
+<body>
+<div id="fx-overlay" aria-hidden="true"><div class="scanline"></div><div class="glitch-line"></div></div>
+<button class="back-btn-container" type="button" onclick="triggerTransition()" aria-label="返回入口頁">
+  <div class="rotating-square"></div>
+  <svg class="back-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square" stroke-linejoin="arcs" aria-hidden="true">
+    <path d="M19 12H5M12 19l-7-7 7-7"/>
+  </svg>
+  <span class="back-btn-label">BACK TO GATEWAY</span>
+</button>
+
+<div class="dashboard">
+  <header class="topbar">
+    <div>
+      <div class="eyebrow">CTC Signal Control Dashboard ｜ Data baseline 2026/06/28</div>
+      <h1>臺鐵湖口站 CTC 變更專案｜鐵路號誌進度監控盤</h1>
+      <div class="meta">
+        <span class="pill">契約編號：L0508P1107U / L0514P1061V</span>
+        <span class="pill">合約金額：NT$ 8,502,500</span>
+        <span class="pill">竣工目標：2026/09/27</span>
+        <span class="pill">注意：目前僅呈現「預定」進度，實績尚未回填</span>
+      </div>
+    </div>
+    <div class="project-state">
+      <div class="state-label">PROJECT SIGNAL</div>
+      <div class="state-box"><span class="lamp"></span> 預定曲線監控中</div>
+      <div class="card-sub">下一監控點：06/29 EI/CTC 切換 → 07/10 收容箱</div>
+    </div>
+  </header>
+
+  <div class="section-heading">01｜專案總覽 KPI</div>
+  <section class="cards">
+    <div class="card"><div class="card-label">合約發包總額</div><div class="card-value">NT$ 8.50M</div><div class="card-sub">依 S Curve 總價欄位：NT$ 8,502,500</div></div>
+    <div class="card"><div class="card-label">6 月累計預定進度</div><div class="card-value" style="color:var(--amber)">35.32%</div><div class="card-sub">非實際完成率；需另填實績</div></div>
+    <div class="card"><div class="card-label">7 月累計預定進度</div><div class="card-value">68.76%</div><div class="card-sub">7 月為預定進度最大跳升月</div></div>
+    <div class="card"><div class="card-label">關鍵切換節點</div><div class="card-value" style="color:var(--orange)">09 / 21</div><div class="card-sub">湖口站 Center 切換，接近竣工前主戰場</div></div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-title"><h2>02｜S Curve 預定進度主圖</h2><div class="panel-note">以 Excel 原始 S Curve 的每月累計預定進度繪製；本圖只呈現合約權重的預定認列曲線，不混入實際完成率或主觀就緒率。</div></div>
+    <div class="curve-wrap">
+      <svg viewBox="0 0 720 330" role="img" aria-label="S Curve 預定進度曲線">
+        <defs><linearGradient id="curveGradient" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#58a6ff" stop-opacity=".35"/><stop offset="1" stop-color="#58a6ff" stop-opacity="0"/></linearGradient></defs>
+        <line class="axis" x1="58" y1="270" x2="670" y2="270"/><line class="axis" x1="58" y1="32" x2="58" y2="270"/>
+        <g class="gridlines"><line class="gridline" x1="58" y1="222.4" x2="670" y2="222.4"/><line class="gridline" x1="58" y1="174.8" x2="670" y2="174.8"/><line class="gridline" x1="58" y1="127.2" x2="670" y2="127.2"/><line class="gridline" x1="58" y1="79.6" x2="670" y2="79.6"/><line class="gridline" x1="58" y1="32" x2="670" y2="32"/></g>
+        <text class="chart-small" x="20" y="274">0%</text><text class="chart-small" x="16" y="226">20%</text><text class="chart-small" x="16" y="179">40%</text><text class="chart-small" x="16" y="131">60%</text><text class="chart-small" x="16" y="84">80%</text><text class="chart-small" x="10" y="36">100%</text>
+        <path class="curve-fill" d="M58 223.5 C119 211 180 197 241 186 C302 141 364 87 425 106 C486 92 548 79 609 32 L609 270 L58 270 Z"/>
+        <path class="curve" d="M58 223.5 C119 211 180 197 241 186 C302 141 364 87 425 106 C486 92 548 79 609 32"/>
+        <g><circle class="dot" cx="58" cy="223.5" r="6"/><text class="chart-label" x="42" y="296">5月</text><text class="chart-small" x="35" y="213">19.54%</text></g>
+        <g><circle class="dot dot-current" cx="241" cy="186" r="7"/><text class="chart-label" x="225" y="296">6月</text><text class="chart-small" x="217" y="175">35.32%</text></g>
+        <g><circle class="dot" cx="425" cy="106" r="6"/><text class="chart-label" x="409" y="296">7月</text><text class="chart-small" x="401" y="95">68.76%</text></g>
+        <g><circle class="dot" cx="486" cy="82" r="6"/><text class="chart-label" x="470" y="296">8月</text><text class="chart-small" x="462" y="72">78.80%</text></g>
+        <g><circle class="dot" cx="548" cy="82" r="6"/><text class="chart-label" x="532" y="296">9月</text><text class="chart-small" x="524" y="72">78.80%</text></g>
+        <g><circle class="dot" cx="609" cy="32" r="6"/><text class="chart-label" x="593" y="296">10月</text><text class="chart-small" x="584" y="22">100%</text></g>
+        <line class="milestone-line" x1="425" y1="32" x2="425" y2="270"/><text class="milestone-text" x="434" y="52">7月最大斜率</text>
+        <line class="milestone-line" x1="548" y1="32" x2="548" y2="270"/><text class="milestone-text" x="557" y="72">9月+0%</text>
+        <text class="chart-small" x="285" y="318">月份軸：5月 19.54% → 10月 100%；9月當月預定進度為 0.00%</text>
+      </svg>
+    </div>
+  </section>
+
+  <section class="panel" style="margin-top:22px">
+    <div class="panel-title"><h2>03｜7 月帳面進度支配區：預定進度最大跳升月</h2><div class="panel-note">本區將 S Curve 拆成每月增加量來看。7 月由 35.32% 跳到 68.76%，單月增加 +33.45 個百分點，是預定進度一次跳最多的月份；重點是高權重工項是否能按期認列，不代表現場實際完成率。</div></div>
+    <div class="slope-card">
+      <div class="hero-metric">
+        <div class="hero-label">MAX SLOPE MONTH</div>
+        <div class="hero-value">2026 / 07</div>
+        <div class="hero-sub">累計預定進度由 35.32% 跳至 68.76%；單月預定增加 +33.45 p.p.。若 7 月高權重工項未按期完成或認列，整體 S Curve 偏差會在此月被放大。</div>
+      </div>
+      <div class="slope-list" aria-label="每月預定進度增加量">
+        <div class="slope-row"><div class="slope-month">5月</div><div class="slope-track"><div class="slope-fill" style="width:58.42%"></div></div><div class="slope-num">+19.54</div></div>
+        <div class="slope-row"><div class="slope-month">6月</div><div class="slope-track"><div class="slope-fill" style="width:47.17%"></div></div><div class="slope-num">+15.78</div></div>
+        <div class="slope-row max"><div class="slope-month">7月</div><div class="slope-track"><div class="slope-fill" style="width:100%"></div></div><div class="slope-num">+33.45</div></div>
+        <div class="slope-row"><div class="slope-month">8月</div><div class="slope-track"><div class="slope-fill" style="width:30.01%"></div></div><div class="slope-num">+10.04</div></div>
+        <div class="slope-row"><div class="slope-month">9月</div><div class="slope-track"><div class="slope-fill" style="width:0%"></div></div><div class="slope-num">+0.00</div></div>
+        <div class="slope-row"><div class="slope-month">10月</div><div class="slope-track"><div class="slope-fill" style="width:63.38%"></div></div><div class="slope-num">+21.20</div></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel route-panel">
+    <div class="panel-title">
+      <h2>04｜鐵路號誌式關鍵路徑</h2>
+      <div class="panel-note">保留原始站點式視覺，但新增「依賴角色」與「壓縮段」標記。此圖回答任務如何前後銜接；壓縮密度分析則在 05 區塊展開。</div>
+    </div>
+    <div class="route-wrap">
+      <div class="route" id="route"></div>
+    </div>
+    <div class="detail" id="detailBox">
+      <div><div class="detail-date" id="detailDate">06/29</div><div class="detail-status"><span class="badge watch" id="detailBadge">WATCH</span></div></div>
+      <div><h3 id="detailTitle">湖口站 EI/CTC 切換</h3><p id="detailText">這是 6 月底的切換窗口，接在兩次模擬測試之後；它不是整體專案終點，後續仍有生產、進場、盤面圖、FAT、Center 切換與竣工節點。</p></div>
+    </div>
+  </section>
+
+  <section class="panel" style="margin-top:22px">
+    <div class="panel-title"><h2>05｜9 月現場風險支配區：切換後緩衝時間最短</h2><div class="panel-note">本區同時呈現任務壓縮度。9 月 S Curve 當月增加量為 0.00%，但 09/21–09/27 連續集中 Center 切換、事前測試、啟用會試與竣工；代表帳面進度看起來沒有增加，但現場切換後的驗證與收尾時間非常短。</div></div>
+    <div class="pressure-grid">
+      <div class="pressure-card">
+        <div class="pressure-title">切換後緩衝窗口｜09/21 → 09/27</div>
+        <div class="pressure-desc">09/21 一旦進入 Center 切換，09/22 與 09/23 就要連續完成事前測試與啟用會試，距離 09/27 竣工只剩 4 天；因此此段重點不是帳面進度，而是切換後能否快速驗證並收束。</div>
+        <div class="timeline-compress">
+          <div class="t-node"><div class="t-date">09/21</div><div class="t-name">湖口站 Center 切換</div><div class="t-gap">切換起點</div></div>
+          <div class="t-node"><div class="t-date">09/22</div><div class="t-name">控制、顯示測試<br>事前測試</div><div class="t-gap">+1 天</div></div>
+          <div class="t-node"><div class="t-date">09/23</div><div class="t-name">控制、顯示<br>啟用會試</div><div class="t-gap">+1 天</div></div>
+          <div class="t-node"><div class="t-date">09/27</div><div class="t-name">竣工日</div><div class="t-gap">+4 天</div></div>
+        </div>
+      </div>
+      <div class="pressure-card">
+        <div class="pressure-title">任務壓縮度｜關鍵節點集中月份</div>
+        <div class="pressure-desc">以切換計畫節點數統計，9 月有 4 個關鍵節點，是任務最集中的月份。7 月與 8 月各有 3 個節點，但 9 月節點直接連到 Center 切換、啟用會試與竣工，對收尾風險影響更高。</div>
+        <div class="density-bars">
+          <div class="density-row"><div class="density-label">4月</div><div class="density-track"><div class="density-fill" style="width:25%"></div></div><div class="density-num">1</div></div>
+          <div class="density-row"><div class="density-label">5月</div><div class="density-track"><div class="density-fill" style="width:50%"></div></div><div class="density-num">2</div></div>
+          <div class="density-row"><div class="density-label">6月</div><div class="density-track"><div class="density-fill" style="width:75%"></div></div><div class="density-num">3</div></div>
+          <div class="density-row"><div class="density-label">7月</div><div class="density-track"><div class="density-fill" style="width:75%"></div></div><div class="density-num">3</div></div>
+          <div class="density-row"><div class="density-label">8月</div><div class="density-track"><div class="density-fill" style="width:75%"></div></div><div class="density-num">3</div></div>
+          <div class="density-row hot"><div class="density-label">9月</div><div class="density-track"><div class="density-fill" style="width:100%"></div></div><div class="density-num">4</div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" style="margin-top:22px">
+    <div class="panel-title"><h2>06｜權重集中分析：少數工項決定大部分帳面進度</h2><div class="panel-note">這不是單純金額排行，而是在提醒：不是每個工項對 S Curve 的影響都一樣。前 3 大工項合計 59.01%，前 4 大工項合計 68.03%，前 6 大工項合計 83.34%；高權重工項一旦延後，帳面進度會比低權重工項延後更明顯。</div></div>
+    <div class="weight-grid">
+      <div class="hero-metric">
+        <div class="hero-label">CONTRACT WEIGHT DOMINANCE</div>
+        <div class="hero-value">Top 4｜68.03%</div>
+        <div class="hero-sub">18 個明細工項並非平均推動進度；少數軟體設計、盤面修改、I/O CODE 與測試工項已支配大部分合約權重。管理上不只要看「完成幾項」，更要看完成的是不是高權重項目。</div>
+      </div>
+      <div class="bar-stack">
+        <div class="weight-row"><div><div class="weight-name">CTC軟體設計樣式修改</div><div class="weight-track"><div class="weight-fill" style="width:100%"></div></div></div><div class="weight-num">27.67%</div></div>
+        <div class="weight-row"><div><div class="weight-name">台北中央行控中心盤面修改</div><div class="weight-track"><div class="weight-fill" style="width:72.55%"></div></div></div><div class="weight-num">20.07%</div></div>
+        <div class="weight-row"><div><div class="weight-name">I/O CODE修改</div><div class="weight-track"><div class="weight-fill" style="width:40.73%"></div></div></div><div class="weight-num">11.27%</div></div>
+        <div class="weight-row"><div><div class="weight-name">軟體模擬測試</div><div class="weight-track"><div class="weight-fill" style="width:32.60%"></div></div></div><div class="weight-num">9.02%</div></div>
+        <div class="weight-row"><div><div class="weight-name">承包商利潤及保險</div><div class="weight-track"><div class="weight-fill" style="width:30.90%"></div></div></div><div class="weight-num">8.55%</div></div>
+        <div class="weight-row"><div><div class="weight-name">軟體界面聯結測試</div><div class="weight-track"><div class="weight-fill" style="width:24.43%"></div></div></div><div class="weight-num">6.76%</div></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" style="margin-top:22px">
+    <div class="panel-title"><h2>07｜責任 / 場所壓力矩陣：交付壓力集中在哪裡</h2><div class="panel-note">依切換計畫中「対応予定者」與「作業場所」出現次數統計。次數代表該單位或場所反覆出現在關鍵節點上，適合作為協調優先順序參考；這不代表人力不足，也不是責任歸咎。NS 為我方主要協作夥伴，應視為需要提前協調與保護的核心交付角色。</div></div>
+    <div class="matrix">
+      <div>
+        <div class="pressure-title">対応予定者出現次數｜主要協作依賴</div>
+        <div class="matrix-list">
+          <div class="matrix-row"><div class="matrix-name">NS</div><div class="matrix-num">14</div></div>
+          <div class="matrix-row"><div class="matrix-name">台北電務段</div><div class="matrix-num">6</div></div>
+          <div class="matrix-row"><div class="matrix-name">西門子</div><div class="matrix-num">4</div></div>
+          <div class="matrix-row"><div class="matrix-name">號誌總機</div><div class="matrix-num">2</div></div>
+          <div class="matrix-row"><div class="matrix-name">TRC</div><div class="matrix-num">1</div></div>
+        </div>
+      </div>
+      <div>
+        <div class="pressure-title">作業場所出現次數｜主要作業集中點</div>
+        <div class="matrix-list">
+          <div class="matrix-row"><div class="matrix-name">台北4F 技術員室、電腦室</div><div class="matrix-num">6</div></div>
+          <div class="matrix-row"><div class="matrix-name">湖口站現場</div><div class="matrix-num">4</div></div>
+          <div class="matrix-row"><div class="matrix-name">日本</div><div class="matrix-num">3</div></div>
+          <div class="matrix-row"><div class="matrix-name">工廠</div><div class="matrix-num">2</div></div>
+          <div class="matrix-row"><div class="matrix-name">台北5F / 6F</div><div class="matrix-num">2</div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" style="margin-top:22px">
+    <div class="panel-title"><h2>08｜進度落差摘要：S Curve 看不到的現場壓力</h2><div class="panel-note">S Curve 顯示的是合約預定進度在各月份如何認列，不等於現場風險在哪一天最高。本案的重點是：7 月決定帳面進度是否順利跳升，9 月決定現場切換是否能在短時間內完成驗證與收尾。</div></div>
+    <div class="gap-table">
+      <div class="gap-row gap-head"><div class="gap-cell">月份</div><div class="gap-cell">S Curve 增加</div><div class="gap-cell">節點數</div><div class="gap-cell">判讀</div></div>
+      <div class="gap-row"><div class="gap-cell">5月</div><div class="gap-cell">+19.54%</div><div class="gap-cell">2</div><div class="gap-cell">帳面進度與前置任務同步出現。</div></div>
+      <div class="gap-row"><div class="gap-cell">6月</div><div class="gap-cell">+15.78%</div><div class="gap-cell">3</div><div class="gap-cell">有 EI/CTC 切換，但 S Curve 不是最高斜率。</div></div>
+      <div class="gap-row alert"><div class="gap-cell">7月</div><div class="gap-cell">+33.45%</div><div class="gap-cell">3</div><div class="gap-cell">帳面進度跳升最大月；高權重工項若延後認列，S Curve 偏差會被放大。</div></div>
+      <div class="gap-row"><div class="gap-cell">8月</div><div class="gap-cell">+10.04%</div><div class="gap-cell">3</div><div class="gap-cell">帳面進度不高，但 08/10 三個測試 / 配線節點同日集中。</div></div>
+      <div class="gap-row alert"><div class="gap-cell">9月</div><div class="gap-cell">+0.00%</div><div class="gap-cell">4</div><div class="gap-cell">最大落差：S Curve 當月 +0.00%，但現場切換、測試、會試與竣工前節點集中。</div></div>
+      <div class="gap-row"><div class="gap-cell">10月</div><div class="gap-cell">+21.20%</div><div class="gap-cell">0</div><div class="gap-cell">帳面進度收尾，但切換計畫主要風險已在 9 月發生。</div></div>
+    </div>
+  </section>
+
+  <div class="footer">資料來源：使用者提供之「湖口CTC預定進度表 S curve r1」Excel 與既有「TRA_Hukou_CTC_Centered_Terminal_V2.html」。本頁為視覺化重構版；未新增實績資料，亦未將管理推估值混入合約 S Curve。</div>
+</div>
+
+<script>
+
+function triggerTransition(){
+  const overlay = document.getElementById('fx-overlay');
+  overlay.classList.add('reboot-anim');
+  setTimeout(()=>{
+    window.location.href = 'TRA_Hukou_CTC_Centered_Terminal_index.html';
+  },600);
+}
+
+const milestones = [
+  {date:'04/29', title:'CODE表完成', role:'前置資料', tag:'DONE', status:'done', compress:'', text:'日本 NS 作為我方主要協作夥伴，交付 CODE 表，屬於後續軟體、介面與盤面修改的基礎資料。'},
+  {date:'05/28', title:'第一次模擬測試', role:'測試驗證', tag:'DONE', status:'done', compress:'', text:'表示論理 soft 確認測試與模擬測試的第一次節點，作為 06/29 EI/CTC 切換前的前置驗證。'},
+  {date:'05/29', title:'改修仕樣書完成', role:'前置資料', tag:'DONE', status:'done', compress:'', text:'日本 NS 作為我方主要協作夥伴，交付改修仕樣書，代表設計文件基礎已完成。'},
+  {date:'06/17', title:'第二次模擬測試', role:'測試驗證', tag:'DONE', status:'done', compress:'', text:'第二次模擬測試完成，支撐 06/29 EI/CTC 切換窗口。'},
+  {date:'06/29', title:'湖口站 EI/CTC 切換', role:'切換窗口', tag:'WATCH', status:'critical', compress:'', text:'這是 6 月底的切換窗口，接在兩次模擬測試之後；它不是整體專案終點，後續仍有生產、進場、盤面圖、FAT、Center 切換與竣工節點。'},
+  {date:'07/10', title:'收容箱生產完成', role:'生產交付', tag:'WATCH', status:'watch', compress:'', text:'TID/CTC 接續箱、CTC 收容箱的 7 月追蹤節點。若此項延遲，會影響 07/27 現場設備進場。'},
+  {date:'07/27', title:'現場設備進場及安裝', role:'現場進場', tag:'WATCH', status:'watch', compress:'壓縮段A', text:'湖口站現場設備進場與安裝，與 07/30 盤面改修圖時間接近，是 8 月測試前的主要壓力點。'},
+  {date:'07/30', title:'盤面改修圖', role:'設計 / 盤面', tag:'WATCH', status:'watch', compress:'壓縮段A', text:'盤面改修圖含馬賽克材料，與現場進場節點僅相差 3 天，需避免壓縮 08/10 測試準備。'},
+  {date:'08/10', title:'FAT / 修改確認測試', role:'測試驗證', tag:'UPCOMING', status:'future', compress:'壓縮段A', text:'調度台修改確認測試、FAT、顯示盤配線變更作業集中於 08/10，是 9 月切換前的測試關卡。'},
+  {date:'09/21', title:'湖口站 Center 切換', role:'切換起點', tag:'CRITICAL', status:'critical', compress:'壓縮段B', text:'竣工前最重要的現場切換節點之一，包含 ARS、TIC、指令台、CTC 中央、表示論理裝置與 code 表示器 soft 更新；後續 09/22 與 09/23 連續接測試與會試，緩衝時間很短。'}
+];
+const route = document.getElementById('route');
+const detailDate = document.getElementById('detailDate');
+const detailTitle = document.getElementById('detailTitle');
+const detailText = document.getElementById('detailText');
+const detailBadge = document.getElementById('detailBadge');
+function setDetail(m){
+  detailDate.textContent = m.date;
+  detailTitle.textContent = m.title;
+  detailText.textContent = m.text;
+  detailBadge.textContent = m.tag;
+  detailBadge.className = 'badge ' + (m.status === 'done' ? 'done' : (m.status === 'critical' ? 'hot' : 'watch'));
+}
+milestones.forEach((m, idx)=>{
+  const el = document.createElement('div');
+  el.className = 'station ' + m.status;
+  el.innerHTML = `<div class="signal"></div><div class="st-date">${m.date}</div><div class="st-name">${m.title}</div><span class="st-role">${m.role}</span><span class="st-tag">${m.tag}</span>${m.compress ? `<span class="st-compress">${m.compress}</span>` : ''}`;
+  el.addEventListener('click',()=>setDetail(m));
+  route.appendChild(el);
+  if(idx===4) setDetail(m);
+});
+</script>
+</body>
+</html>

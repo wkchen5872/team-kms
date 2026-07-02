@@ -5,41 +5,43 @@
 /* shadcn token system (ported from llmwiki, pre-v4 form: HSL vars + class dark). */
 :root {
   --sidebar-width: 14rem;
-  --radius: 1rem;
+  --radius: 0.75rem;
 
-  /* Light theme — warm paper */
-  --background: 30 3% 96%;
-  --foreground: 20 14% 4%;
+  /* Light theme — docs/design/default (slate / blue) */
+  --background: 210 40% 98%;        /* #f8fafc */
+  --foreground: 222 47% 11%;        /* #0f172a */
   --card: 0 0% 100%;
-  --card-foreground: 20 14% 10%;
+  --card-foreground: 222 47% 11%;
   --popover: 0 0% 100%;
-  --popover-foreground: 20 14% 10%;
-  --primary: 24 10% 10%;
-  --primary-foreground: 60 9% 98%;
-  --secondary: 30 6% 96%;
-  --secondary-foreground: 20 14% 10%;
-  --muted: 30 6% 96%;
-  --muted-foreground: 25 5% 45%;
-  --accent: 30 6% 94%;
-  --accent-foreground: 20 14% 10%;
-  --destructive: 0 84.2% 60.2%;
-  --destructive-foreground: 60 9% 98%;
-  --border: 24 6% 83%;
-  --input: 24 6% 83%;
-  --ring: 25 5% 45%;
-  --accent-blue: 220 40% 50%;
-  --sidebar: 30 3% 96%;
-  --sidebar-foreground: 20 14% 4%;
-  --sidebar-primary: 24 10% 10%;
-  --sidebar-primary-foreground: 60 9% 98%;
-  --sidebar-accent: 30 6% 94%;
-  --sidebar-accent-foreground: 20 14% 10%;
-  --sidebar-border: 24 6% 90%;
-  --sidebar-ring: 25 5% 45%;
+  --popover-foreground: 222 47% 11%;
+  --primary: 222 47% 11%;           /* ink near-black buttons */
+  --primary-foreground: 210 40% 98%;
+  --secondary: 210 40% 96%;         /* #f1f5f9 */
+  --secondary-foreground: 222 47% 11%;
+  --muted: 210 40% 96%;
+  --muted-foreground: 215 16% 47%;  /* #64748b */
+  --accent: 210 40% 96%;
+  --accent-foreground: 222 47% 11%;
+  --destructive: 0 84% 60%;         /* #ef4444 */
+  --destructive-foreground: 210 40% 98%;
+  --border: 214 32% 91%;            /* #e2e8f0 */
+  --input: 214 32% 91%;
+  --ring: 215 16% 47%;
+  --accent-blue: 217 91% 60%;       /* #3b82f6 */
+  --success: 160 84% 39%;           /* #10b981 */
+  --warning: 38 92% 50%;            /* #f59e0b */
+  --sidebar: 0 0% 100%;
+  --sidebar-foreground: 222 47% 11%;
+  --sidebar-primary: 222 47% 11%;
+  --sidebar-primary-foreground: 210 40% 98%;
+  --sidebar-accent: 210 40% 96%;
+  --sidebar-accent-foreground: 222 47% 11%;
+  --sidebar-border: 214 32% 91%;
+  --sidebar-ring: 215 16% 47%;
 }
 
 .dark {
-  /* Dark theme — lamp light (warm darks) */
+  /* Dark theme — lamp light (warm darks). Unchanged except added status tokens. */
   --background: 20 14% 4%;
   --foreground: 40 10% 90%;
   --card: 20 12% 8%;
@@ -60,6 +62,8 @@
   --input: 20 6% 16%;
   --ring: 24 5% 55%;
   --accent-blue: 220 35% 55%;
+  --success: 160 60% 45%;
+  --warning: 38 90% 55%;
   --sidebar: 20 14% 3%;
   --sidebar-foreground: 40 10% 90%;
   --sidebar-primary: 40 10% 90%;

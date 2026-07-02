@@ -1,0 +1,781 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Team KMS ｜ 原始檔案來源</title>
+  <style>
+    :root {
+      --bg: #080b10;
+      --panel: #111722;
+      --panel-2: #151e2b;
+      --ink: #edf4ff;
+      --muted: #8fa1b6;
+      --line: #2a3a4d;
+      --green: #28d17c;
+      --amber: #ffbf3d;
+      --red: #ff4d5e;
+      --blue: #58a6ff;
+      --orange: #ff7a1a;
+      --purple: #bf58ff;
+      --shadow: 0 18px 50px rgba(0,0,0,.35);
+      --radius: 20px;
+      --radius-sm: 10px;
+      --stroke: 1px solid rgba(255,255,255,.12);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background:
+        radial-gradient(circle at 18% 0%, rgba(88,166,255,.12), transparent 32%),
+        radial-gradient(circle at 90% 8%, rgba(255,122,26,.10), transparent 28%),
+        linear-gradient(180deg,#070a0f 0%,#0b1018 45%,#06080c 100%);
+      color: var(--ink);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans TC", "Microsoft JhengHei", Arial, sans-serif;
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+    }
+
+    /* Layout Structure */
+    .workspace {
+      display: flex;
+      width: 100vw;
+      height: 100vh;
+      position: relative;
+    }
+
+    /* Sidebar Styling */
+    .sidebar {
+      width: 260px;
+      border-right: var(--stroke);
+      background: linear-gradient(180deg, rgba(13,20,30,.98) 0%, rgba(8,12,18,.98) 100%);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+      z-index: 10;
+    }
+    .sidebar-header {
+      padding: 16px;
+      border-bottom: 1px solid rgba(255,255,255,.05);
+    }
+    .kb-selector {
+      width: 100%;
+      background: rgba(255,255,255,.04);
+      border: 1px solid rgba(255,255,255,.1);
+      border-radius: var(--radius-sm);
+      color: var(--ink);
+      padding: 10px 12px;
+      font-size: 13px;
+      font-weight: bold;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .kb-selector:hover {
+      background: rgba(255,255,255,.08);
+      border-color: rgba(88,166,255,.3);
+    }
+    .sidebar-actions {
+      display: flex;
+      gap: 8px;
+      padding: 12px 16px;
+      border-bottom: 1px solid rgba(255,255,255,.05);
+    }
+    .action-icon-btn {
+      flex: 1;
+      background: rgba(255,255,255,.03);
+      border: 1px solid rgba(255,255,255,.08);
+      color: var(--muted);
+      border-radius: 6px;
+      padding: 8px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s ease;
+    }
+    .action-icon-btn:hover {
+      background: rgba(255,255,255,.08);
+      color: #fff;
+      border-color: var(--blue);
+    }
+    .sidebar-menu {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px;
+    }
+    .menu-section {
+      margin-bottom: 24px;
+    }
+    .menu-title {
+      font-size: 10px;
+      font-weight: 900;
+      color: var(--muted);
+      letter-spacing: .12em;
+      margin-bottom: 8px;
+      padding-left: 8px;
+      text-transform: uppercase;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+    .menu-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 12px;
+      border-radius: var(--radius-sm);
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 4px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .menu-item:hover {
+      background: rgba(255,255,255,.03);
+      color: var(--ink);
+    }
+    .menu-item.active {
+      background: rgba(88,166,255,.1);
+      color: var(--ink);
+      border: 1px solid rgba(88,166,255,.2);
+    }
+    .item-count {
+      font-size: 10px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      background: rgba(255,255,255,.08);
+      padding: 2px 6px;
+      border-radius: 4px;
+      color: var(--muted);
+    }
+    .menu-item.active .item-count {
+      background: rgba(88,166,255,.2);
+      color: var(--blue);
+    }
+
+    .empty-wiki {
+      text-align: center;
+      padding: 20px 12px;
+      border: 1px dashed rgba(255,255,255,.08);
+      border-radius: var(--radius-sm);
+      background: rgba(255,255,255,.01);
+    }
+    .empty-wiki p { margin: 0 0 10px; font-size: 11px; color: var(--muted); }
+    .btn-claude {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--blue);
+      text-decoration: none;
+      font-size: 11px;
+      font-weight: bold;
+    }
+    .btn-claude:hover { text-decoration: underline; }
+
+    .sidebar-footer {
+      padding: 12px 16px;
+      border-top: 1px solid rgba(255,255,255,.05);
+      background: rgba(0,0,0,.15);
+    }
+    .user-profile {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--ink);
+      text-decoration: none;
+      font-size: 12px;
+      font-weight: bold;
+      width: 100%;
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      text-align: left;
+      padding: 6px;
+      border-radius: 6px;
+      transition: background 0.15s ease;
+    }
+    .user-profile:hover {
+      background: rgba(255,255,255,.05);
+    }
+    .user-avatar {
+      width: 22px;
+      height: 22px;
+      border-radius: 4px;
+      background: rgba(88,166,255,.2);
+      border: 1px solid rgba(88,166,255,.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 9px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      color: var(--blue);
+      font-weight: 900;
+    }
+
+    /* Main Content Styling */
+    .main-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      background: transparent;
+    }
+    
+    /* Top Toolbar */
+    .toolbar {
+      height: 48px;
+      border-bottom: var(--stroke);
+      padding: 0 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: rgba(17,23,34,.6);
+      backdrop-filter: blur(8px);
+    }
+    .nav-breadcrumbs {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      font-weight: bold;
+    }
+    .breadcrumb-root { color: var(--muted); }
+    .breadcrumb-sep { color: rgba(255,255,255,.2); }
+    .toolbar-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .btn-toolbar {
+      background: rgba(255,255,255,.04);
+      border: 1px solid rgba(255,255,255,.08);
+      color: var(--ink);
+      font-size: 12px;
+      font-weight: bold;
+      padding: 6px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s ease;
+    }
+    .btn-toolbar:hover {
+      background: rgba(255,255,255,.1);
+      border-color: var(--blue);
+    }
+    .btn-toolbar.upload {
+      background: rgba(88,166,255,.1);
+      border-color: rgba(88,166,255,.2);
+      color: var(--blue);
+    }
+    .btn-toolbar.upload:hover {
+      background: rgba(88,166,255,.2);
+      border-color: var(--blue);
+      box-shadow: 0 0 10px rgba(88,166,255,.15);
+    }
+
+    /* Grid Area */
+    .grid-container {
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px;
+    }
+    .files-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      gap: 16px;
+    }
+    
+    /* File Card */
+    .file-card {
+      border: var(--stroke);
+      background: linear-gradient(180deg, rgba(21,30,43,.8) 0%, rgba(15,22,33,.8) 100%);
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      aspect-ratio: 1 / 1.05;
+      padding: 12px;
+    }
+    .file-card:hover {
+      transform: translateY(-2px);
+      border-color: rgba(88,166,255,.3);
+      box-shadow: var(--shadow);
+    }
+    .checkbox-select {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      width: 16px;
+      height: 16px;
+      border-radius: 4px;
+      border: 1px solid rgba(255,255,255,.2);
+      background: rgba(0,0,0,.5);
+      z-index: 5;
+      opacity: 0;
+      transition: opacity 0.15s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .file-card:hover .checkbox-select { opacity: 1; }
+    .file-preview {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0,0,0,.2);
+      border-radius: 6px;
+      margin-bottom: 10px;
+      position: relative;
+    }
+    .file-icon {
+      width: 32px;
+      height: 32px;
+      stroke: var(--muted);
+      stroke-width: 2.2;
+      filter: drop-shadow(0 0 6px rgba(255,255,255,.05));
+      transition: all 0.2s ease;
+    }
+    .file-card.md .file-icon { stroke: var(--green); filter: drop-shadow(0 0 8px rgba(40,209,124,.35)); }
+    .file-card.pdf .file-icon { stroke: var(--orange); filter: drop-shadow(0 0 8px rgba(255,122,26,.35)); }
+    .file-card.docx .file-icon { stroke: var(--purple); filter: drop-shadow(0 0 8px rgba(191,88,255,.35)); }
+    .file-card.xlsx .file-icon { stroke: var(--amber); filter: drop-shadow(0 0 8px rgba(255,191,61,.35)); }
+    .file-card.image .file-icon { stroke: var(--blue); filter: drop-shadow(0 0 8px rgba(88,166,255,.35)); }
+
+    .file-meta {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+    .file-name {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--ink);
+      line-clamp: 2;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      height: 32px;
+      line-height: 1.35;
+    }
+    .file-ext-size {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 9px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      color: var(--muted);
+      text-transform: uppercase;
+      font-weight: 900;
+    }
+    .tag-ext {
+      padding: 1px 4px;
+      background: rgba(255,255,255,.05);
+      border-radius: 3px;
+      border: 1px solid rgba(255,255,255,.06);
+    }
+    .file-card.md .tag-ext { border-color: rgba(40,209,124,.2); background: rgba(40,209,124,.05); color: var(--green); }
+    .file-card.pdf .tag-ext { border-color: rgba(255,122,26,.2); background: rgba(255,122,26,.05); color: var(--orange); }
+    .file-card.docx .tag-ext { border-color: rgba(191,88,255,.2); background: rgba(191,88,255,.05); color: var(--purple); }
+    .file-card.xlsx .tag-ext { border-color: rgba(255,191,61,.2); background: rgba(255,191,61,.05); color: var(--amber); }
+
+    /* New/Create Card */
+    .file-card.create-card {
+      border: 1px dashed rgba(255,255,255,.15);
+      background: rgba(255,255,255,.01);
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+    }
+    .file-card.create-card:hover {
+      border-color: var(--green);
+      background: rgba(40,209,124,.02);
+    }
+    .create-card-text {
+      font-size: 13px;
+      font-weight: bold;
+      color: var(--muted);
+    }
+    .file-card.create-card:hover .create-card-text {
+      color: var(--green);
+    }
+
+    /* Process state spinner overlay */
+    .processing-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(17,23,34,.75);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    .spinner {
+      width: 18px;
+      height: 18px;
+      border: 2px solid rgba(88,166,255,.2);
+      border-top-color: var(--blue);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    .processing-text {
+      font-size: 9px;
+      color: var(--blue);
+      font-weight: bold;
+      letter-spacing: .05em;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Glitch screen overlay */
+    #fx-overlay {
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      background: #030508;
+      z-index: 10000;
+      display: none;
+      overflow: hidden;
+      transform-origin: center;
+    }
+    .scanline {
+      width: 100%;
+      height: 100%;
+      background:
+        linear-gradient(to bottom,rgba(255,255,255,0) 50%,rgba(255,255,255,.045) 50%),
+        linear-gradient(90deg,rgba(88,166,255,.12),rgba(255,191,61,.035),rgba(255,122,26,.10));
+      background-size: 100% 4px, 4px 100%;
+      pointer-events: none;
+    }
+    .glitch-line {
+      position: absolute;
+      top: 50%;
+      left: 0;
+      width: 100%;
+      height: 2px;
+      background: #edf4ff;
+      box-shadow: 0 0 24px rgba(88,166,255,.88), 0 0 42px rgba(255,191,61,.42);
+      transform: translateY(-50%) scaleY(0);
+    }
+    .reboot-anim {
+      display: block !important;
+      animation: screen-burn .5s ease-in forwards;
+    }
+    .reboot-anim .glitch-line { animation: glitch-flash .5s ease-in forwards }
+    @keyframes screen-burn {
+      0% { opacity: 0; }
+      10% { opacity: 1; }
+      80% { transform: scaleY(1); }
+      100% { transform: scaleY(.006) scaleX(1.4); opacity: 1; }
+    }
+    @keyframes glitch-flash {
+      0% { transform: translateY(-50%) scaleY(0); }
+      28% { transform: translateY(-50%) scaleY(1); }
+      100% { transform: translateY(-50%) scaleY(.2); }
+    }
+  </style>
+</head>
+<body>
+  <div id="fx-overlay" aria-hidden="true"><div class="scanline"></div><div class="glitch-line"></div></div>
+
+  <div class="workspace">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="kb-selector" onclick="triggerTransition('wikis.html')" title="回到知識庫列表">
+          <span>松霖國際</span>
+          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chevrons-up-down text-muted"><path d="m7 15 5 5 5-5"></path><path d="m7 9 5-5 5 5"></path></svg>
+        </div>
+      </div>
+
+      <div class="sidebar-actions">
+        <button class="action-icon-btn" title="搜尋" onclick="alert('搜尋框展開 (模擬)')">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m21 21-4.34-4.34"></path><circle cx="11" cy="11" r="8"></circle></svg>
+        </button>
+        <button class="action-icon-btn" title="關係圖譜" onclick="alert('開啟知識圖譜面版')">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="16" y="16" width="6" height="6" rx="1"></rect><rect x="2" y="16" width="6" height="6" rx="1"></rect><rect x="9" y="2" width="6" height="6" rx="1"></rect><path d="M5 16v-3a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v3"></path><path d="M12 12V8"></path></svg>
+        </button>
+        <button class="action-icon-btn" title="上傳檔案" onclick="document.getElementById('file-upload-input').click()">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"></path><path d="m17 8-5-5-5 5"></path><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path></svg>
+        </button>
+        <input type="file" id="file-upload-input" style="display: none;" onchange="mockUpload(event)" />
+      </div>
+
+      <div class="sidebar-menu">
+        <div class="menu-section">
+          <div class="menu-title">Wiki</div>
+          <div class="empty-wiki">
+            <p>本知識庫尚無編寫頁面</p>
+            <a href="wiki.html" class="btn-claude">
+              <span>查看 Wiki 示範頁</span>
+              <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7h10v10"></path><path d="M7 17 17 7"></path></svg>
+            </a>
+          </div>
+        </div>
+
+        <div class="menu-section">
+          <div class="menu-title">Data Sources</div>
+          <div class="menu-item active" onclick="triggerTransition('files.html')">
+            <span style="display: flex; align-items: center; gap: 8px;">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m16 6 4 14"></path><path d="M12 6v14"></path><path d="M8 8v12"></path><path d="M4 4v16"></path></svg>
+              <span>所有檔案</span>
+            </span>
+            <span class="item-count" id="sources-count">10</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="sidebar-footer">
+        <button class="user-profile" onclick="triggerTransition('settings.html')" title="開啟設定">
+          <div class="user-avatar">DE</div>
+          <div style="flex: 1; min-width: 0;">
+            <div style="font-weight: 900; truncate; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2;">dev@teamkms.dev</div>
+            <div style="font-size: 9px; color: var(--muted); font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; line-height: 1;">ACCESS: ADMIN</div>
+          </div>
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main View -->
+    <main class="main-content">
+      <header class="toolbar">
+        <div class="nav-breadcrumbs">
+          <span class="breadcrumb-root">松霖國際</span>
+          <span class="breadcrumb-sep">/</span>
+          <span class="breadcrumb-current">所有檔案 (Sources)</span>
+        </div>
+        <div class="toolbar-actions">
+          <button class="btn-toolbar" onclick="alert('開啟篩選面版')">
+            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
+            <span>篩選</span>
+          </button>
+          <button class="btn-toolbar upload" onclick="document.getElementById('file-upload-input').click()">
+            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"></path><path d="m17 8-5-5-5 5"></path><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path></svg>
+            <span>上傳</span>
+          </button>
+        </div>
+      </header>
+
+      <div class="grid-container">
+        <div class="files-grid" id="files-grid-div">
+          <!-- Create new card -->
+          <div class="file-card create-card" onclick="document.getElementById('file-upload-input').click()">
+            <div style="font-size: 24px; color: var(--muted); margin-bottom: 6px;">+</div>
+            <div class="create-card-text">上傳檔案來源</div>
+          </div>
+
+          <!-- File items -->
+          <div class="file-card md">
+            <div class="checkbox-select"></div>
+            <div class="file-preview">
+              <svg class="file-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"></path><path d="M14 2v4a2 2 0 0 0 2 2h4"></path><path d="M10 9H8"></path><path d="M16 13H8"></path><path d="M16 17H8"></path></svg>
+            </div>
+            <div class="file-meta">
+              <div class="file-name" title="2025 - 台糖 - 台中市北屯區陳平段">2025 - 台糖 - 台中市北屯區陳平段</div>
+              <div class="file-ext-size">
+                <span class="tag-ext">MD</span>
+                <span>2.4 KB</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="file-card md">
+            <div class="checkbox-select"></div>
+            <div class="file-preview">
+              <svg class="file-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"></path><path d="M14 2v4a2 2 0 0 0 2 2h4"></path><path d="M10 9H8"></path><path d="M16 13H8"></path><path d="M16 17H8"></path></svg>
+            </div>
+            <div class="file-meta">
+              <div class="file-name" title="2025 - 台糖 - 彰化縣溪州鄉進樂段">2025 - 台糖 - 彰化縣溪州鄉進樂段</div>
+              <div class="file-ext-size">
+                <span class="tag-ext">MD</span>
+                <span>1.8 KB</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="file-card pdf">
+            <div class="checkbox-select"></div>
+            <div class="file-preview">
+              <svg class="file-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"></path><path d="M14 2v4a2 2 0 0 0 2 2h4"></path><path d="M10 9H8"></path><path d="M16 13H8"></path><path d="M16 17H8"></path></svg>
+            </div>
+            <div class="file-meta">
+              <div class="file-name" title="New_OKGO-Fluence_45櫃_E-dReg_64MW_容量2205MWH_投資案!">New_OKGO-Fluence_45櫃_E-dReg_64MW_容量2205MWH_投資案!</div>
+              <div class="file-ext-size">
+                <span class="tag-ext">PDF</span>
+                <span>12.4 MB</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="file-card docx">
+            <div class="checkbox-select"></div>
+            <div class="file-preview">
+              <svg class="file-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"></path><path d="M14 2v4a2 2 0 0 0 2 2h4"></path><path d="M10 9H8"></path><path d="M16 13H8"></path><path d="M16 17H8"></path></svg>
+            </div>
+            <div class="file-meta">
+              <div class="file-name" title="太陽光電案場改善升級工程承攬契約書">太陽光電案場改善升級工程承攬契約書</div>
+              <div class="file-ext-size">
+                <span class="tag-ext">DOCX</span>
+                <span>42 KB</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Document being processed -->
+          <div class="file-card docx">
+            <div class="checkbox-select"></div>
+            <div class="file-preview">
+              <svg class="file-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"></path><path d="M14 2v4a2 2 0 0 0 2 2h4"></path><path d="M10 9H8"></path><path d="M16 13H8"></path><path d="M16 17H8"></path></svg>
+              <div class="processing-overlay">
+                <div class="spinner"></div>
+                <div class="processing-text">EXTRACTING</div>
+              </div>
+            </div>
+            <div class="file-meta">
+              <div class="file-name" title="20260331花蓮太陽光電設備買賣契約書03173">20260331花蓮太陽光電設備買賣契約書03173</div>
+              <div class="file-ext-size">
+                <span class="tag-ext">DOC</span>
+                <span>118 KB</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="file-card image">
+            <div class="checkbox-select"></div>
+            <div class="file-preview">
+              <svg class="file-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"></rect><circle cx="9" cy="9" r="2"></circle><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"></path></svg>
+            </div>
+            <div class="file-meta">
+              <div class="file-name" title="img_2025_11_25_124937">img_2025_11_25_124937</div>
+              <div class="file-ext-size">
+                <span class="tag-ext">PNG</span>
+                <span>850 KB</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="file-card md">
+            <div class="checkbox-select"></div>
+            <div class="file-preview">
+              <svg class="file-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"></path><path d="M14 2v4a2 2 0 0 0 2 2h4"></path><path d="M10 9H8"></path><path d="M16 13H8"></path><path d="M16 17H8"></path></svg>
+            </div>
+            <div class="file-meta">
+              <div class="file-name" title="README">README</div>
+              <div class="file-ext-size">
+                <span class="tag-ext">MD</span>
+                <span>512 B</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="file-card md">
+            <div class="checkbox-select"></div>
+            <div class="file-preview">
+              <svg class="file-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"></path><path d="M14 2v4a2 2 0 0 0 2 2h4"></path><path d="M10 9H8"></path><path d="M16 13H8"></path><path d="M16 17H8"></path></svg>
+            </div>
+            <div class="file-meta">
+              <div class="file-name" title="松霖國際投資股份有限公司">松霖國際投資股份有限公司</div>
+              <div class="file-ext-size">
+                <span class="tag-ext">MD</span>
+                <span>3.2 KB</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="file-card image">
+            <div class="checkbox-select"></div>
+            <div class="file-preview">
+              <svg class="file-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"></rect><circle cx="9" cy="9" r="2"></circle><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"></path></svg>
+            </div>
+            <div class="file-meta">
+              <div class="file-name" title="花蓮_-_光英段">花蓮_-_光英段</div>
+              <div class="file-ext-size">
+                <span class="tag-ext">JPEG</span>
+                <span>2.4 MB</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    function triggerTransition(url){
+      const overlay = document.getElementById('fx-overlay');
+      overlay.classList.add('reboot-anim');
+      setTimeout(()=>{
+        window.location.href = url;
+      },500);
+    }
+
+    // Mock Upload Logic
+    function mockUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const grid = document.getElementById('files-grid-div');
+      const card = document.createElement('div');
+      const randomId = 'file-' + Math.floor(Math.random()*1000);
+      
+      const fileExt = file.name.split('.').pop().toUpperCase();
+      let icon = `<svg class="file-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"></path><path d="M14 2v4a2 2 0 0 0 2 2h4"></path><path d="M10 9H8"></path><path d="M16 13H8"></path><path d="M16 17H8"></path></svg>`;
+      let cardClass = "md";
+      if (['PDF'].includes(fileExt)) { cardClass = "pdf"; }
+      else if (['PNG', 'JPG', 'JPEG', 'GIF'].includes(fileExt)) {
+        icon = `<svg class="file-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"></rect><circle cx="9" cy="9" r="2"></circle><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"></path></svg>`;
+        cardClass = "image";
+      }
+      else if (['DOC', 'DOCX'].includes(fileExt)) { cardClass = "docx"; }
+      else if (['XLS', 'XLSX'].includes(fileExt)) {
+        icon = `<svg class="file-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"></rect><path d="M3 9h18"></path><path d="M9 21V9"></path><path d="M15 21V9"></path></svg>`;
+        cardClass = "xlsx";
+      }
+
+      card.className = `file-card ${cardClass}`;
+      card.id = randomId;
+      card.innerHTML = `
+        <div class="checkbox-select"></div>
+        <div class="file-preview">
+          ${icon}
+          <div class="processing-overlay" id="${randomId}-processing">
+            <div class="spinner"></div>
+            <div class="processing-text">EXTRACTING</div>
+          </div>
+        </div>
+        <div class="file-meta">
+          <div class="file-name" title="${file.name}">${file.name}</div>
+          <div class="file-ext-size">
+            <span class="tag-ext">${fileExt}</span>
+            <span>${(file.size / 1024).toFixed(1)} KB</span>
+          </div>
+        </div>
+      `;
+
+      // Insert right after the create-new card
+      grid.insertBefore(card, grid.children[1]);
+
+      // Update count
+      const countEl = document.getElementById('sources-count');
+      countEl.textContent = parseInt(countEl.textContent) + 1;
+
+      // Mock completion after 3s
+      setTimeout(() => {
+        const procOverlay = document.getElementById(`${randomId}-processing`);
+        if (procOverlay) procOverlay.remove();
+      }, 3000);
+    }
+  </script>
+</body>
+</html>
