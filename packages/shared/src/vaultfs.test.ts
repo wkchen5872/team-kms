@@ -125,4 +125,24 @@ describe.skipIf(!process.env.DATABASE_URL)("PostgresVaultFS", () => {
     const after = await fs.listDocuments(kbId);
     expect(after.some((d) => d.filename === "trade.md")).toBe(false);
   });
+
+  it("renameFolder rewrites only descendants' path; deleteFolder archives the subtree", async () => {
+    // Seed two folders with a file each.
+    await fs.createNote(kbId, { filename: "a.md", path: "/proj/alpha/", content: "alpha body ".repeat(6) });
+    await fs.createNote(kbId, { filename: "b.md", path: "/proj/beta/", content: "beta body ".repeat(6) });
+
+    // Rename /proj/alpha/ → /proj/gamma/ — only alpha's file moves, beta untouched.
+    const renamed = await fs.renameFolder(kbId, "/proj/alpha/", "gamma");
+    expect(renamed).toBe(1);
+    const afterRename = await fs.listDocuments(kbId);
+    expect(afterRename.find((d) => d.filename === "a.md")!.path).toBe("/proj/gamma/");
+    expect(afterRename.find((d) => d.filename === "b.md")!.path).toBe("/proj/beta/");
+
+    // Delete /proj/gamma/ — its file is archived, beta's remains.
+    const deleted = await fs.deleteFolder(kbId, "/proj/gamma/");
+    expect(deleted).toBe(1);
+    const afterDelete = await fs.listDocuments(kbId);
+    expect(afterDelete.some((d) => d.filename === "a.md")).toBe(false);
+    expect(afterDelete.some((d) => d.filename === "b.md")).toBe(true);
+  });
 });

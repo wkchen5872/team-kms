@@ -19,9 +19,9 @@ import {
   serviceExecute,
 } from "@team-kms/shared";
 import { HttpConverterClient } from "./converter-client.js";
-import { ingestSource, ingestAsync } from "./ingest.js";
+import { ingestSource, ingestAsync, EXTRACTABLE_TYPES } from "./ingest.js";
 import { startDocumentListener, subscribe } from "./notify.js";
-import { setProcessor, recoverStuckJobs, extractionProcessor } from "./jobs.js";
+import { setProcessor, recoverStuckJobs, extractionProcessor, enqueue } from "./jobs.js";
 import { ocrProviderFromEnv } from "./ocr.js";
 import {
   TUS_VERSION,
@@ -178,6 +178,32 @@ app.delete("/v1/knowledge-bases/:slug", async (c) => {
   return c.body(null, 204);
 });
 
+// ── Folder (virtual, path-prefix) delete / rename ─────────────────
+app.delete("/v1/knowledge-bases/:slug/folders", async (c) => {
+  const fs = c.get("fs");
+  const kb = await fs.resolveKb(c.req.param("slug"));
+  if (!kb) return c.json({ error: "Knowledge base not found" }, 404);
+  const body = (await c.req.json().catch(() => ({}))) as { path?: string };
+  if (!body.path?.trim()) return c.json({ error: "path is required" }, 400);
+  const archived = await fs.deleteFolder(kb.id as string, body.path.trim());
+  return c.json({ archived });
+});
+
+app.patch("/v1/knowledge-bases/:slug/folders", async (c) => {
+  const fs = c.get("fs");
+  const kb = await fs.resolveKb(c.req.param("slug"));
+  if (!kb) return c.json({ error: "Knowledge base not found" }, 404);
+  const body = (await c.req.json().catch(() => ({}))) as { path?: string; name?: string };
+  if (!body.path?.trim() || !body.name?.trim()) return c.json({ error: "path and name are required" }, 400);
+  try {
+    const updated = await fs.renameFolder(kb.id as string, body.path.trim(), body.name.trim());
+    return c.json({ updated });
+  } catch (err) {
+    if (isUnique(err)) return c.json({ error: "A folder with that name already exists here" }, 409);
+    throw err;
+  }
+});
+
 // ── Full-text search (functional gap) ─────────────────────────────
 app.get("/v1/knowledge-bases/:slug/search", async (c) => {
   const fs = c.get("fs");
@@ -247,6 +273,23 @@ app.delete("/v1/documents/:id", async (c) => {
   const n = await c.get("fs").archiveDocuments([c.req.param("id")]);
   if (!n) return c.json({ error: "Document not found" }, 404);
   return c.body(null, 204);
+});
+
+// Re-extract an already-uploaded document: reset to pending + re-queue, which
+// re-reads the persisted S3 source and rebuilds pages/chunks (no re-upload).
+app.post("/v1/documents/:id/re-extract", async (c) => {
+  const id = c.req.param("id");
+  const doc = await c.get("fs").getDocumentById(id);
+  if (!doc) return c.json({ error: "Document not found" }, 404);
+  if (!EXTRACTABLE_TYPES.has((doc.file_type as string) ?? "")) {
+    return c.json({ error: "This document type is not extractable" }, 400);
+  }
+  await serviceExecute("UPDATE documents SET status = 'pending', updated_at = now() WHERE id = $1 AND user_id = $2", [
+    id,
+    c.get("userId"),
+  ]);
+  enqueue(id);
+  return c.json({ id, status: "pending" });
 });
 
 app.get("/v1/documents/:id/download", async (c) => {

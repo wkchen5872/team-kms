@@ -1,15 +1,16 @@
 'use client'
 
 import { motion, AnimatePresence } from 'framer-motion'
-import { Trash2, X } from 'lucide-react'
+import { Trash2, X, RefreshCw } from 'lucide-react'
 
 type Props = {
   count: number
   onDelete: () => void
   onClear: () => void
+  onReextract?: () => void
 }
 
-export function SelectionActionBar({ count, onDelete, onClear }: Props) {
+export function SelectionActionBar({ count, onDelete, onClear, onReextract }: Props) {
   return (
     <AnimatePresence>
       {count > 0 && (
@@ -24,6 +25,15 @@ export function SelectionActionBar({ count, onDelete, onClear }: Props) {
             {count} selected
           </span>
           <div className="h-4 w-px bg-border" />
+          {onReextract && (
+            <button
+              onClick={onReextract}
+              className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:bg-accent transition-colors cursor-pointer"
+            >
+              <RefreshCw className="size-3.5" />
+              Re-extract
+            </button>
+          )}
           <button
             onClick={onDelete}
             className="inline-flex items-center gap-1.5 rounded-md bg-destructive px-3 py-1.5 text-xs font-medium text-destructive-foreground hover:bg-destructive/90 transition-colors cursor-pointer"

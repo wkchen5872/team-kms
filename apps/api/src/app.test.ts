@@ -139,6 +139,55 @@ describe.skipIf(!SUPABASE_URL || !SERVICE)("REST API", () => {
     expect((await app.request(`/v1/knowledge-bases/${kb.slug}/documents`, { headers: authHeader() })).status).toBe(404);
   });
 
+  it("supports folder rename/delete and rejects re-extract of a note", async () => {
+    const jsonAuth = { "content-type": "application/json", ...authHeader() };
+    const kb = (await (
+      await app.request("/v1/knowledge-bases", { method: "POST", headers: jsonAuth, body: JSON.stringify({ name: "Folder KB" }) })
+    ).json()) as { slug: string };
+
+    // Two notes in two sibling folders.
+    const mk = (filename: string, path: string) =>
+      app.request(`/v1/knowledge-bases/${kb.slug}/documents/note`, {
+        method: "POST",
+        headers: jsonAuth,
+        body: JSON.stringify({ filename, path, content: "folder body ".repeat(6) }),
+      });
+    const noteA = (await (await mk("a.md", "/proj/alpha/")).json()) as { id: string };
+    await mk("b.md", "/proj/beta/");
+
+    // Rename /proj/alpha/ → /proj/gamma/ (only alpha moves).
+    const ren = await app.request(`/v1/knowledge-bases/${kb.slug}/folders`, {
+      method: "PATCH",
+      headers: jsonAuth,
+      body: JSON.stringify({ path: "/proj/alpha/", name: "gamma" }),
+    });
+    expect(ren.status).toBe(200);
+    expect(((await ren.json()) as { updated: number }).updated).toBe(1);
+    const docs = (await (await app.request(`/v1/knowledge-bases/${kb.slug}/documents`, { headers: authHeader() })).json()) as {
+      filename: string;
+      path: string;
+    }[];
+    expect(docs.find((d) => d.filename === "a.md")!.path).toBe("/proj/gamma/");
+    expect(docs.find((d) => d.filename === "b.md")!.path).toBe("/proj/beta/");
+
+    // re-extract a note (md) is rejected.
+    const rx = await app.request(`/v1/documents/${noteA.id}/re-extract`, { method: "POST", headers: authHeader() });
+    expect(rx.status).toBe(400);
+
+    // Delete the /proj/gamma/ folder → its note is archived, beta remains.
+    const del = await app.request(`/v1/knowledge-bases/${kb.slug}/folders`, {
+      method: "DELETE",
+      headers: jsonAuth,
+      body: JSON.stringify({ path: "/proj/gamma/" }),
+    });
+    expect(((await del.json()) as { archived: number }).archived).toBe(1);
+    const after = (await (await app.request(`/v1/knowledge-bases/${kb.slug}/documents`, { headers: authHeader() })).json()) as {
+      filename: string;
+    }[];
+    expect(after.some((d) => d.filename === "a.md")).toBe(false);
+    expect(after.some((d) => d.filename === "b.md")).toBe(true);
+  });
+
   it("uploads a markdown file and reads its content", async () => {
     const kb = (await (
       await app.request("/v1/knowledge-bases", {

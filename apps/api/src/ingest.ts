@@ -12,6 +12,10 @@ const TEXT_TYPES = new Set(["md", "txt"]);
 // Raster images: stored as-is, never sent to the PDF/Office converter (which
 // would reject them). OCR, if configured, adds searchable text at finalize.
 const IMAGE_TYPES = new Set(["png", "jpg", "jpeg", "webp", "gif"]);
+// Office/PDF go through the converter; images through OCR. Both are re-extractable.
+const OFFICE_PDF_TYPES = new Set(["pdf", "pptx", "ppt", "docx", "doc", "xls", "xlsx"]);
+/** Types whose content is derived by extraction/OCR (so re-extract is meaningful). */
+export const EXTRACTABLE_TYPES = new Set([...OFFICE_PDF_TYPES, ...IMAGE_TYPES]);
 const MIME: Record<string, string> = {
   pdf: "application/pdf",
   docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",

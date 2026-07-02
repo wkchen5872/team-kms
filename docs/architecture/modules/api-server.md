@@ -35,6 +35,7 @@ timestamp: 2025-07-02T00:00:00Z
 | GET | `/v1/me` | 使用者資訊 |
 | GET / POST | `/v1/knowledge-bases` | 知識庫列表/建立 |
 | PATCH / DELETE | `/v1/knowledge-bases/:slug` | 知識庫更名（UNIQUE→409）/ 刪除（service-role，cascade） |
+| DELETE / PATCH | `/v1/knowledge-bases/:slug/folders` | 虛擬資料夾（path 前綴）刪除（遞迴軟刪，body `{path}`）/ 改名（body `{path,name}`，UNIQUE→409） |
 | GET | `/v1/knowledge-bases/:slug/documents` | 文件列表 |
 | GET | `/v1/knowledge-bases/:slug/graph` | 知識圖譜（nodes + edges） |
 | GET | `/v1/knowledge-bases/:slug/search?q=&limit=` | 全文內容搜尋（包 `searchChunks`） |
@@ -42,6 +43,7 @@ timestamp: 2025-07-02T00:00:00Z
 | GET | `/v1/documents/:id/content` | 文件內容 |
 | PATCH | `/v1/documents/:id` | 改內容（`{content}`）/ 移動（`{path}`）/ 更名（`{title}`） |
 | DELETE | `/v1/documents/:id` | 軟刪（`archived`）→204 |
+| POST | `/v1/documents/:id/re-extract` | 重新萃取：重設 `status='pending'` + `enqueue`，對已上傳 S3 來源重跑解析/OCR（僅可萃取類型，否則 400） |
 | GET | `/v1/documents/:id/source-url` | 原始檔案 presigned S3 URL |
 | GET | `/v1/documents/:id/download` | 同上的別名（redirect 到 presigned） |
 | POST | `/v1/knowledge-bases/:slug/upload` | Multipart 單檔上傳（同步 ingest） |

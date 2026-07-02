@@ -104,6 +104,9 @@ function findFirstPath(nodes: WikiNode[]): { path: string; docNumber: number | n
   return null
 }
 
+// Types whose content is derived by extraction/OCR (mirror of api EXTRACTABLE_TYPES).
+const EXTRACTABLE = new Set(['pdf', 'pptx', 'ppt', 'docx', 'doc', 'xls', 'xlsx', 'png', 'jpg', 'jpeg', 'webp', 'gif'])
+
 type Props = {
   kbId: string
   kbSlug: string
@@ -364,6 +367,17 @@ export function KBDetail({ kbId, kbSlug, kbName, viewMode, routeFilesPath }: Pro
     lastSelectedIdRef.current = null
   }, [])
 
+  // Checkbox toggle (no modifier semantics) — always add/remove the single id.
+  const toggleSelect = React.useCallback((docId: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(docId)) next.delete(docId)
+      else next.add(docId)
+      lastSelectedIdRef.current = docId
+      return next
+    })
+  }, [])
+
   React.useEffect(() => {
     if (selectedIds.size === 0) return
     const handleKeyDown = (e: KeyboardEvent) => { if (e.key === 'Escape') clearSelection() }
@@ -382,6 +396,64 @@ export function KBDetail({ kbId, kbSlug, kbName, viewMode, routeFilesPath }: Pro
     if (succeeded.length > 0) setDocuments((prev) => prev.filter((d) => !succeeded.includes(d.id)))
     if (failed.length > 0) toast.error(`Failed to delete ${failed.length} document${failed.length > 1 ? 's' : ''}`)
     clearSelection()
+  }
+
+  // ─── Re-extract ──────────────────────────────────────────────
+  const markProcessingLocal = React.useCallback((ids: string[]) => {
+    const set = new Set(ids)
+    setDocuments((prev) => prev.map((d) => (set.has(d.id) ? { ...d, status: 'processing' } : d)))
+  }, [setDocuments])
+
+  const handleReextractDocument = async (docId: string) => {
+    const t = getToken()
+    if (!t) return
+    try {
+      await apiFetch(`/v1/documents/${docId}/re-extract`, t, { method: 'POST' })
+      markProcessingLocal([docId]) // WebSocket will drive processing → ready
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to re-extract')
+    }
+  }
+
+  const handleReextractSelected = async () => {
+    const t = getToken()
+    if (!t) return
+    const ids = sourceDocs
+      .filter((d) => selectedIds.has(d.id) && EXTRACTABLE.has(d.file_type))
+      .map((d) => d.id)
+    if (ids.length === 0) { toast.info('No re-extractable files selected'); return }
+    const results = await Promise.allSettled(ids.map((id) => apiFetch(`/v1/documents/${id}/re-extract`, t, { method: 'POST' })))
+    const ok = ids.filter((_, i) => results[i].status === 'fulfilled')
+    const failed = ids.length - ok.length
+    if (ok.length > 0) markProcessingLocal(ok)
+    if (failed > 0) toast.error(`Failed to re-extract ${failed} file${failed > 1 ? 's' : ''}`)
+    clearSelection()
+  }
+
+  // ─── Folder ops ──────────────────────────────────────────────
+  const handleDeleteFolder = async (path: string) => {
+    const t = getToken()
+    if (!t) return
+    const inside = documents.filter((d) => !d.archived && (d.path || '/').startsWith(path)).length
+    if (!window.confirm(`Delete this folder and its ${inside} document${inside === 1 ? '' : 's'}?`)) return
+    try {
+      await apiFetch(`/v1/knowledge-bases/${kbId}/folders`, t, { method: 'DELETE', body: JSON.stringify({ path }) })
+      setDocuments((prev) => prev.filter((d) => !(d.path || '/').startsWith(path)))
+    } catch { toast.error('Failed to delete folder') }
+  }
+
+  const handleRenameFolder = async (path: string, newName: string) => {
+    const t = getToken()
+    if (!t) return
+    // /parent/old/ → /parent/newName/
+    const parent = path.replace(/[^/]+\/$/, '')
+    const newPrefix = `${parent}${newName}/`
+    try {
+      await apiFetch(`/v1/knowledge-bases/${kbId}/folders`, t, { method: 'PATCH', body: JSON.stringify({ path, name: newName }) })
+      setDocuments((prev) => prev.map((d) => ((d.path || '/').startsWith(path) ? { ...d, path: newPrefix + (d.path || '').slice(path.length) } : d)))
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to rename folder')
+    }
   }
 
   // ─── Navigation handlers ─────────────────────────────────────
@@ -869,6 +941,12 @@ export function KBDetail({ kbId, kbSlug, kbName, viewMode, routeFilesPath }: Pro
                   onPathChange={handleFilesPathChange}
                   onDocOpen={handleFilesDocOpen}
                   onDocClose={handleFilesDocClose}
+                  selectedIds={selectedIds}
+                  onToggleSelect={toggleSelect}
+                  onSelect={handleSelect}
+                  onReextractDocument={handleReextractDocument}
+                  onDeleteFolder={handleDeleteFolder}
+                  onRenameFolder={handleRenameFolder}
                 />
               </motion.div>
             ) : pageLoading ? (
@@ -944,6 +1022,7 @@ export function KBDetail({ kbId, kbSlug, kbName, viewMode, routeFilesPath }: Pro
         count={selectedIds.size}
         onDelete={handleDeleteSelected}
         onClear={clearSelection}
+        onReextract={handleReextractSelected}
       />
     </div>
   )

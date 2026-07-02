@@ -467,6 +467,38 @@ export class PostgresVaultFS {
     );
   }
 
+  /** Normalize a folder path to a `/…/` prefix (leading + trailing slash). */
+  private static folderPrefix(path: string): string {
+    let p = path.trim();
+    if (!p.startsWith("/")) p = `/${p}`;
+    if (!p.endsWith("/")) p = `${p}/`;
+    return p;
+  }
+
+  /** Delete a (virtual) folder: archive every active document under its path prefix.
+   *  Folders are path prefixes, not rows. Returns the number of documents archived. */
+  async deleteFolder(kbId: string, path: string): Promise<number> {
+    const prefix = PostgresVaultFS.folderPrefix(path);
+    return serviceExecute(
+      "UPDATE documents SET archived = true, updated_at = now() " +
+        "WHERE knowledge_base_id = $1 AND user_id = $2 AND NOT archived AND path LIKE $3 || '%'",
+      [kbId, this.userId, prefix],
+    );
+  }
+
+  /** Rename a (virtual) folder: rewrite the path prefix of every descendant document
+   *  from oldName to newName at the same parent level. Returns rows updated. */
+  async renameFolder(kbId: string, path: string, newName: string): Promise<number> {
+    const oldPrefix = PostgresVaultFS.folderPrefix(path);
+    const parent = oldPrefix.slice(0, oldPrefix.slice(0, -1).lastIndexOf("/") + 1); // parent dir incl. trailing slash
+    const newPrefix = PostgresVaultFS.folderPrefix(`${parent}${newName}`);
+    return serviceExecute(
+      "UPDATE documents SET path = $4 || substring(path from length($3) + 1), updated_at = now() " +
+        "WHERE knowledge_base_id = $1 AND user_id = $2 AND path LIKE $3 || '%'",
+      [kbId, this.userId, oldPrefix, newPrefix],
+    );
+  }
+
   async listDocuments(kbId: string): Promise<DocumentRow[]> {
     return scopedQuery<DocumentRow>(
       this.userId,

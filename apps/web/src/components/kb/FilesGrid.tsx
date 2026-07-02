@@ -7,6 +7,7 @@ import {
   Upload, Plus, FolderPlus, ExternalLink, Pencil,
   ChevronLeft, ChevronRight, ArrowUp, ArrowDown, MoreHorizontal,
   Image, Sheet, Presentation, FileCode, Search, X, Download,
+  Check, RefreshCw,
 } from 'lucide-react'
 import {
   ContextMenu, ContextMenuTrigger, ContextMenuContent,
@@ -33,6 +34,10 @@ import type { DocumentListItem } from '@/lib/types'
 
 type SortField = 'name' | 'date' | 'type'
 type SortDir = 'asc' | 'desc'
+
+// Types whose content is derived by extraction/OCR (mirror of api EXTRACTABLE_TYPES);
+// only these get a "Re-extract" action.
+const EXTRACTABLE = new Set(['pdf', 'pptx', 'ppt', 'docx', 'doc', 'xls', 'xlsx', 'png', 'jpg', 'jpeg', 'webp', 'gif'])
 
 interface FolderNode {
   name: string
@@ -160,6 +165,13 @@ interface FilesGridProps {
   onDocOpen?: (docNumber: number | null) => void
   /** Notify parent when a doc is closed (for URL sync) */
   onDocClose?: () => void
+  /** Multi-select: currently-selected doc ids + interaction callbacks */
+  selectedIds?: Set<string>
+  onToggleSelect?: (id: string) => void
+  onSelect?: (id: string, e: React.MouseEvent) => void
+  onReextractDocument?: (id: string) => void
+  onDeleteFolder?: (path: string) => void
+  onRenameFolder?: (path: string, newName: string) => void
 }
 
 export function FilesGrid({
@@ -177,6 +189,12 @@ export function FilesGrid({
   onPathChange,
   onDocOpen,
   onDocClose,
+  selectedIds,
+  onToggleSelect,
+  onSelect,
+  onReextractDocument,
+  onDeleteFolder,
+  onRenameFolder,
 }: FilesGridProps) {
   // Navigation state
   const [currentPath, setCurrentPath] = React.useState(initialPath ?? '/')
@@ -657,12 +675,24 @@ export function FilesGrid({
                               onNavigate={() => navigateTo(folder.path)}
                               onDropDocuments={handleFolderDrop}
                               onDropFiles={handleFolderFileDrop}
+                              onDelete={onDeleteFolder ? () => onDeleteFolder(folder.path) : undefined}
+                              onRename={onRenameFolder ? (name) => onRenameFolder(folder.path, name) : undefined}
                             />
                           </motion.div>
                         ))}
                         {filteredDocs.map((doc) => (
                           <motion.div key={doc.id} layout exit={{ opacity: 0, scale: 0.95 }} transition={{ layout: { duration: 0.15, ease: 'easeOut' }, opacity: { duration: 0.1 } }} className="h-full">
-                            <DocumentCard doc={doc} onOpen={() => openDoc(doc)} onDelete={() => onDeleteDocument(doc.id)} onRename={(t) => onRenameDocument(doc.id, t)} />
+                            <DocumentCard
+                              doc={doc}
+                              onOpen={() => openDoc(doc)}
+                              onDelete={() => onDeleteDocument(doc.id)}
+                              onRename={(t) => onRenameDocument(doc.id, t)}
+                              selected={selectedIds?.has(doc.id) ?? false}
+                              selectionActive={(selectedIds?.size ?? 0) > 0}
+                              onToggleSelect={onToggleSelect}
+                              onSelect={onSelect}
+                              onReextract={onReextractDocument}
+                            />
                           </motion.div>
                         ))}
                       </AnimatePresence>
@@ -702,19 +732,35 @@ export function FilesGrid({
 /*  Cards                                                              */
 /* ------------------------------------------------------------------ */
 
-function FolderCard({ name, path, onNavigate, onDropDocuments, onDropFiles }: {
+function FolderCard({ name, path, onNavigate, onDropDocuments, onDropFiles, onDelete, onRename }: {
   name: string
   path: string
   onNavigate: () => void
   onDropDocuments: (docIds: string[], targetPath: string) => void
   onDropFiles: (files: File[], targetPath: string) => void
+  onDelete?: () => void
+  onRename?: (newName: string) => void
 }) {
   const [dragOver, setDragOver] = React.useState(false)
+  const [renaming, setRenaming] = React.useState(false)
+  const [renameValue, setRenameValue] = React.useState('')
+  const renameRef = React.useRef<HTMLInputElement>(null)
   const dragCounter = React.useRef(0)
 
-  return (
+  const startRename = () => {
+    setRenameValue(name)
+    setRenaming(true)
+    requestAnimationFrame(() => { renameRef.current?.focus(); renameRef.current?.select() })
+  }
+  const commitRename = () => {
+    const trimmed = renameValue.trim()
+    if (trimmed && trimmed !== name) onRename?.(trimmed)
+    setRenaming(false)
+  }
+
+  const card = (
     <div
-      onClick={onNavigate}
+      onClick={() => { if (!renaming) onNavigate() }}
       onDragEnter={(e) => { e.preventDefault(); e.stopPropagation(); dragCounter.current++; if (dragCounter.current === 1) setDragOver(true) }}
       onDragLeave={(e) => { e.preventDefault(); e.stopPropagation(); dragCounter.current--; if (dragCounter.current === 0) setDragOver(false) }}
       onDragOver={(e) => {
@@ -748,13 +794,50 @@ function FolderCard({ name, path, onNavigate, onDropDocuments, onDropFiles }: {
         <Folder className={cn('size-12', dragOver ? 'text-primary' : 'text-muted-foreground/70')} />
       </div>
       <div className="px-2 py-1.5">
-        <span className="text-xs font-medium text-foreground truncate block">{name}</span>
+        {renaming ? (
+          <input
+            ref={renameRef}
+            type="text"
+            value={renameValue}
+            onChange={(e) => setRenameValue(e.target.value)}
+            onKeyDown={(e) => { e.stopPropagation(); if (e.key === 'Enter') commitRename(); if (e.key === 'Escape') setRenaming(false) }}
+            onBlur={commitRename}
+            onClick={(e) => e.stopPropagation()}
+            className="text-xs font-medium text-foreground bg-transparent border-b border-foreground/30 outline-none w-full"
+          />
+        ) : (
+          <span className="text-xs font-medium text-foreground truncate block">{name}</span>
+        )}
       </div>
     </div>
   )
+
+  // No actions wired → plain card (keeps existing behavior).
+  if (!onDelete && !onRename) return card
+
+  return (
+    <ContextMenu>
+      <ContextMenuTrigger asChild>{card}</ContextMenuTrigger>
+      <ContextMenuContent>
+        <ContextMenuItem onClick={onNavigate}><ExternalLink className="size-3.5 mr-2" />Open</ContextMenuItem>
+        {onRename && <ContextMenuItem onClick={startRename}><Pencil className="size-3.5 mr-2" />Rename</ContextMenuItem>}
+        {onDelete && <><ContextMenuSeparator /><ContextMenuItem variant="destructive" onClick={onDelete}><Trash2 className="size-3.5 mr-2" />Delete</ContextMenuItem></>}
+      </ContextMenuContent>
+    </ContextMenu>
+  )
 }
 
-function DocumentCard({ doc, onOpen, onDelete, onRename }: { doc: DocumentListItem; onOpen: () => void; onDelete: () => void; onRename: (t: string) => void }) {
+function DocumentCard({ doc, onOpen, onDelete, onRename, selected, selectionActive, onToggleSelect, onSelect, onReextract }: {
+  doc: DocumentListItem
+  onOpen: () => void
+  onDelete: () => void
+  onRename: (t: string) => void
+  selected?: boolean
+  selectionActive?: boolean
+  onToggleSelect?: (id: string) => void
+  onSelect?: (id: string, e: React.MouseEvent) => void
+  onReextract?: (id: string) => void
+}) {
   const [renaming, setRenaming] = React.useState(false)
   const [renameValue, setRenameValue] = React.useState('')
   const [dragging, setDragging] = React.useState(false)
@@ -782,6 +865,17 @@ function DocumentCard({ doc, onOpen, onDelete, onRename }: { doc: DocumentListIt
 
   const handleDragEnd = () => setDragging(false)
 
+  const canSelect = !!onToggleSelect
+  const handleCardClick = (e: React.MouseEvent) => {
+    // Modifier click (or shift-range) → select; otherwise open.
+    if (canSelect && (e.metaKey || e.ctrlKey || e.shiftKey)) {
+      e.preventDefault()
+      onSelect?.(doc.id, e)
+      return
+    }
+    onOpen()
+  }
+
   return (
     <ContextMenu>
       <ContextMenuTrigger asChild>
@@ -789,12 +883,28 @@ function DocumentCard({ doc, onOpen, onDelete, onRename }: { doc: DocumentListIt
           draggable={!renaming}
           onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
-          onClick={onOpen}
+          onClick={handleCardClick}
           className={cn(
-            'group relative rounded-lg border border-border hover:bg-accent/40 cursor-pointer transition-colors flex flex-col overflow-hidden h-full',
+            'group relative rounded-lg border cursor-pointer transition-colors flex flex-col overflow-hidden h-full',
+            selected ? 'border-primary ring-2 ring-primary/40 bg-primary/5' : 'border-border hover:bg-accent/40',
             dragging && 'opacity-40',
           )}
         >
+          {canSelect && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onToggleSelect?.(doc.id) }}
+              aria-label={selected ? 'Deselect' : 'Select'}
+              className={cn(
+                'absolute top-1.5 left-1.5 z-10 size-4 rounded border flex items-center justify-center transition-opacity',
+                selected
+                  ? 'bg-primary border-primary text-primary-foreground opacity-100'
+                  : 'bg-background/80 border-border text-transparent opacity-0 group-hover:opacity-100',
+                selectionActive && 'opacity-100',
+              )}
+            >
+              <Check className="size-3" />
+            </button>
+          )}
           <div className="relative flex items-center justify-center bg-muted/30 aspect-square overflow-hidden">
             <span className={cn('text-muted-foreground/40', isProcessing && 'opacity-40')}>{docIcon(doc.file_type)}</span>
             {isProcessing && <div className="absolute inset-0 flex items-center justify-center"><Loader2 className="size-5 text-muted-foreground animate-spin" /></div>}
@@ -816,6 +926,9 @@ function DocumentCard({ doc, onOpen, onDelete, onRename }: { doc: DocumentListIt
       <ContextMenuContent>
         <ContextMenuItem onClick={onOpen}><ExternalLink className="size-3.5 mr-2" />Open</ContextMenuItem>
         <ContextMenuItem onClick={startRename}><Pencil className="size-3.5 mr-2" />Rename</ContextMenuItem>
+        {onReextract && EXTRACTABLE.has(doc.file_type) && (
+          <ContextMenuItem onClick={() => onReextract(doc.id)}><RefreshCw className="size-3.5 mr-2" />Re-extract</ContextMenuItem>
+        )}
         <ContextMenuSeparator />
         <ContextMenuItem variant="destructive" onClick={onDelete}><Trash2 className="size-3.5 mr-2" />Delete</ContextMenuItem>
       </ContextMenuContent>
