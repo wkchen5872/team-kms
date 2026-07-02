@@ -70,9 +70,11 @@ graph TD
 
 ## 資料流摘要
 
-- **上傳/解析（Ingest）**：Web 上傳檔案 → `apps/api` → S3 → （PDF/Office）`apps/converter`
-  轉出 per-page markdown → `apps/api` 分塊（chunker）→ 寫入 `document_chunks`（PGroonga 索引）。
-  純文字/Markdown 檔案略過 converter，直接分塊索引。詳見 [workflows.md](/docs/architecture/workflows.md)。
+- **上傳/解析（Ingest）**：Web 上傳檔案 → `apps/api`（依 `fileType` 三分支）→ S3 →（PDF/Office）
+  `apps/converter` 轉出 per-page markdown **+ 內嵌圖 bytes**（存成 `kind='asset'` 子文件）→
+  `apps/api` 分塊（chunker）→ 寫入 `document_chunks`（PGroonga 索引）。純文字/Markdown 略過
+  converter 直接索引；**圖片**（png/jpg…）跳過 converter、存 asset + 可選 OCR。圖片與抽出的圖
+  可選跑多 provider OCR（Mistral/Gemini），文字併入索引。詳見 [workflows.md](/docs/architecture/workflows.md)。
 - **合成（Synthesis）**：Claude 透過 MCP `search`/`read` 查閱來源，再用 `create`/`edit`/`append`
   寫 wiki 頁。每次寫入都會解析內文中的 footnote citation 與 wiki link，更新
   `document_references` 圖譜邊，並回報「哪些頁面引用了剛編輯的這頁」。**後端全程零 LLM 呼叫**。
@@ -90,7 +92,8 @@ graph TD
 | 資料庫 | PostgreSQL + PGroonga 全文索引 | Supabase 託管；`&@~` 全文檢索算子 |
 | 認證 | Supabase Auth（ES256 JWT）+ `jose` JWKS 驗證 | RLS 依 `request.jwt.claims` 隔離每位使用者 |
 | 物件儲存 | S3-compatible（Supabase Storage）+ `@aws-sdk/client-s3` | 存放原始上傳檔案（PDF/Office 來源） |
-| 文件轉換 | `@opendataloader/pdf`（Java CLI 包裝）+ LibreOffice（Office→PDF） | 與 Python 原版同一轉換引擎，零品質損失 |
+| 文件轉換 | `@opendataloader/pdf`（Java CLI 包裝，`imageOutput=embedded`）+ LibreOffice（Office→PDF） | 與 Python 原版同一轉換引擎，零品質損失；PDF 內嵌圖以 base64 抽出存 asset |
+| 圖片 OCR（可選） | 多 provider `OcrProvider`：Mistral / Gemini | 於 ingest 層對抽出的圖抽可搜尋文字；`OCR_PROVIDER=none` 則關閉（維持零 LLM） |
 | 上傳協議 | TUS 1.0（`apps/api/tus.ts`，最大 200MB） | 續傳式上傳，simple multipart 為輔 |
 | 前端框架 | Next.js 14（App Router）+ React 18 | Client components，Supabase Auth |
 | 前端資料視覺化 | `react-markdown` 9 + `mermaid` 11 + `react-force-graph-2d` 1.25 | Wiki 內容渲染 + 知識圖譜 |
@@ -102,3 +105,5 @@ graph TD
 - `apps/converter/Dockerfile`：額外安裝 JRE headless + LibreOffice（writer/impress/calc）。
 - `docker-compose.yml`：`converter`(8002) ← `api`(8000) ← `mcp`(8001) / `web`(3000)；
   不內嵌 Postgres，資料庫/Auth/Storage 全由 Supabase 提供。
+- **OCR 環境變數**（可選，僅 `apps/api`）：`OCR_PROVIDER`（`mistral`/`gemini`/`none`，未設＝`none`）
+  + 對應 `MISTRAL_API_KEY` / `GEMINI_API_KEY`。未設則不跑 OCR（只存圖給 Claude 看），維持後端零 LLM。

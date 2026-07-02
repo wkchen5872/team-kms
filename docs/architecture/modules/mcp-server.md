@@ -38,7 +38,7 @@ timestamp: 2025-07-02T00:00:00Z
 | `list_knowledge_bases` | 列出使用者可存取的知識庫 |
 | `create_knowledge_base` | 建立新知識庫 |
 | `search` | 三種模式：list（檔案/資料夾瀏覽）、search（關鍵字 + chunk 級全文搜尋，含頁碼）、references（uncited/stale 來源、forward refs、backlinks 圖譜查詢） |
-| `read` | 讀單一檔案或 glob；分頁來源（PDF/Office）支援 page range；wiki 頁附 backlinks 摘要 |
+| `read` | 讀單一檔案或 glob；分頁來源（PDF/Office）支援 page range；wiki 頁附 backlinks 摘要；`include_images=true` 時從 `document_pages.elements` 載 asset bytes、以 base64 ImageContent 回給 Claude（上限 12 張，比照原版），供視覺判讀圖表/流程圖 |
 | `create` | 建立新 wiki 頁/筆記/資產（SVG/CSV）；缺 frontmatter 時自動補上；重名預設拒絕，需明確 `overwrite=true` |
 | `edit` | find-and-replace，比對字串須唯一 |
 | `append` | 附加段落，含 footnote 重新編號邏輯 |
@@ -52,6 +52,12 @@ timestamp: 2025-07-02T00:00:00Z
 ### `wiki.ts`
 - 共用工具函式：`globMatch()`、`resolvePath()`、`parsePageRange()`、`parseFrontmatter()`、
   `ensureWikiFrontmatter()`、`appendMarkdownSection()`、`titleToFilename()` 等（測試也共用這些函式）。
+
+### `read` 圖片回傳（`include_images`）
+- `server.ts` 的 `read` schema 加 `include_images?: boolean`（預設關）。
+- 開啟時 `tools.ts` 從目標文件的 `document_pages.elements.images` 取 asset docId → 載 asset bytes →
+  以 base64 `ImageContent` 區塊回傳，**上限 `MAX = 12` 張**（超過截斷）。預設只回文字。
+- 讓 Claude 能實際「看到」PDF 抽出的圖表/流程圖，而非只讀 OCR 文字。
 
 ### `references-sync.ts`
 - 每次 `create`/`edit`/`append` 完成後呼叫 `updateReferences()`，重建該文件的引用圖譜邊

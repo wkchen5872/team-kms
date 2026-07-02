@@ -125,7 +125,7 @@ raw 專屬處理欄位，從 base 表拆出（expand-contract 遷移）。1:1 �
 | 欄位 | 型別 | 說明 |
 |---|---|---|
 | `document_id` | UUID PK→documents | CASCADE |
-| `parser` | TEXT | `text` / `opendataloader` / `none`（image） |
+| `parser` | TEXT | `text`（純文字）/ `opendataloader`（PDF/Office）/ `ocr`（圖片有 OCR 文字）/ `none`（圖片無 OCR） |
 | `error_message` | TEXT | 解析失敗訊息 |
 
 - **授權**：`grant … to service_role` + RLS enabled（依 supabase-migrations 規範）。
@@ -138,8 +138,8 @@ raw 專屬處理欄位，從 base 表拆出（expand-contract 遷移）。1:1 �
 |---|---|---|
 | `document_id` | UUID FK | CASCADE，`UNIQUE(document_id, page)` |
 | `page` | INTEGER | 1-based |
-| `content` | TEXT ≤500k | 該頁 markdown |
-| `elements` | JSONB | opendataloader 結構化元素 |
+| `content` | TEXT ≤500k | 該頁 markdown（內嵌圖連結已改寫為 `asset:<assetDocId>`） |
+| `elements` | JSONB | 該頁抽出的圖清單 `{"images":[{id, src, filename}]}`（`src=asset:<docId>`）；無圖則 NULL |
 
 - **RLS**：`SELECT` 透過 EXISTS 子查詢間接限定（`documents.user_id = auth.uid()`）。
 
@@ -178,8 +178,15 @@ raw 專屬處理欄位，從 base 表拆出（expand-contract 遷移）。1:1 �
 
 ### ① 單一 `documents` 表裝三種東西（`kind`）
 
-`raw`（上傳來源）/ `wiki`（Claude 撰寫的頁）/ `asset`（內嵌素材，如影像 OCR 產物）。
+`raw`（上傳來源）/ `wiki`（Claude 撰寫的頁）/ `asset`（內嵌素材，如 PDF 抽出的圖）。
 這是 VaultFS「所有東西都是 document」的抽象；`kind` 取代了舊的 `metadata->>'asset'` flag。
+
+**asset 文件細節**（PDF 內嵌圖，`vaultfs.persistPageImages`）：每張圖 → 一筆
+`kind='asset'` 文件，`path='/.assets/'`、`metadata={hidden, parent_document_id, kind:'pdf_image'}`、
+bytes 存 Storage（key `{user}/{assetDocId}/source.{fmt}`），並以 `file_hash`（SHA-256）
+**per-asset 去重**（同圖多頁 / 重新 ingest 不重存）。OCR 文字併入 parent 頁的 `content` → chunks
+供搜尋；圖連結在 parent 的 `document_pages.content` / `.elements` 以 `asset:<docId>` 穩定引用。
+直接上傳的圖片則是一般 `raw` 文件（非 asset），`document_raw.parser` 記 `ocr`/`none`。
 
 ### ② Frontmatter 是真相來源，欄位是衍生投影
 
@@ -229,12 +236,14 @@ raw 專屬的 `parser`/`error_message` 從 base 表搬到 `document_raw`（1:1�
 |---|---|---|---|
 | 純文字/md：直接建立 | `createDocument()` | `documents`(+`document_raw`) | scoped |
 | 二進位：先建 pending | `createPendingDocument()` | `documents`+`document_raw`（CTE 一次插入） | service |
-| converter 回傳後定稿 | `finalizeExtractedDocument()` | `document_pages`（逐頁）、`documents`(content/page_count/status=ready)、`document_raw`(parser=opendataloader) | service |
-| 影像 OCR 定稿 | `finalizeImageDocument()` / `persistPageImages()` | `documents`(status=ready)、`document_raw`(parser=none)、asset `documents` | service |
+| converter 回傳後定稿（PDF/Office） | `finalizeExtractedDocument()` → `persistPageImages()` | `document_pages`(逐頁 content+`elements`)、每張內嵌圖建 asset `documents`+`document_raw`、`documents`(content/page_count/status=ready、parser=opendataloader) | service |
+| 直接上傳圖片定稿 | `finalizeImageDocument()` | `documents`(status=ready、OCR 文字入 content)、`document_raw`(parser=`ocr`/`none`) | service |
 | 分塊索引 | （`chunker` 產出後）內部寫入 | `document_chunks`（先 DELETE 再批次 INSERT） | — |
 
-進入點：[`apps/api/src/ingest.ts`](/docs/architecture/modules/api-server.md) 判斷文字 vs 二進位；
-二進位由 [`jobs.ts`](/docs/architecture/modules/api-server.md) 的解析佇列呼叫 converter。
+進入點：[`apps/api/src/ingest.ts`](/docs/architecture/modules/api-server.md) 依 `fileType` 分文字 /
+圖片 / 二進位三支（圖片跳過 converter、直接 OCR）；二進位由
+[`jobs.ts`](/docs/architecture/modules/api-server.md) 的解析佇列呼叫 converter。OCR 由
+[`ocr.ts`](/docs/architecture/modules/api-server.md) 的 `OcrProvider`（Mistral/Gemini，可選）於 ingest 層執行。
 
 ### Claude 撰寫 / 編輯 wiki 頁
 

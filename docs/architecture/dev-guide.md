@@ -24,6 +24,16 @@ timestamp: 2025-07-02T00:00:00Z
 - 前端與 API 端要同步：`apps/api/src/ingest.ts` 的 `TEXT_TYPES`/binary 分流、MIME 對照表
   （見 `apps/api/src/ingest.ts` 內的 MIME map）需加入新副檔名。
 
+## 新增一個 OCR provider
+
+- 在 [`apps/api/src/ocr.ts`](/apps/api/src/ocr.ts) 實作 `OcrProvider` 介面
+  （`ocrImage(bytes, mime) → { text }`），回應形狀差異在 provider 內正規化。
+- 在 `ocrProviderFromEnv()` 加入新的 `OCR_PROVIDER` 值分支 + 對應 API key 檢查；
+  未設或 key 缺失時應回 `null`（維持後端零 LLM、優雅降級）。
+- OCR **只在 ingest 層**跑（`ingest.ts` 經 `ocrImageBytes` / `ocrPageImages`），
+  失敗必須回 undefined 而非拋錯——不可阻斷 ingest（圖仍存為 asset、文件仍收斂 `ready`）。
+- converter **永遠不碰 OCR / LLM**：抽圖與 OCR 是兩層關注點（見 [converter](/docs/architecture/modules/converter.md)）。
+
 ## 新增一個 MCP 工具
 
 1. 在 [`apps/mcp/src/tools.ts`](/apps/mcp/src/tools.ts) 的 `WikiTools` class 加入

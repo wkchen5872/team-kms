@@ -98,7 +98,7 @@ graph LR
 | 核心 | `filename` `title` `path` `file_type` `status` `content` `page_count` `version` `archived` | 兩種文件都用 |
 | 衍生投影（來自 frontmatter） | `tags` `date` | wiki 頁才有值；真相在 `content` frontmatter |
 | ingest 寫入 | `file_size`（byte 數）、`file_hash`（原始 bytes sha256，去重用） | 上傳時填 |
-| raw 處理紀錄（子表 `document_raw`） | `parser`（`text`/`opendataloader`）、`error_message` | 移出 base；1:1 掛 raw 文件 |
+| raw 處理紀錄（子表 `document_raw`） | `parser`（`text`/`opendataloader`/`ocr`/`none`）、`error_message` | 移出 base；1:1 掛 raw/asset 文件 |
 | 圖譜/維護 | `document_number`（每 KB 遞增，trigger 自動）、`stale_since`（引用來源被編輯時標記） | 自動維護 |
 | 已移除 | ~~`url`~~、~~`kind`(舊 course 版)~~、`sort_order`（upstream 後端也沒用） | 見上方 migration 註 |
 
@@ -106,11 +106,22 @@ graph LR
 
 ## 流程一：檔案上傳 → 解析 → 索引
 
-**文字說明**：使用者在 `/wikis/:slug` 選擇檔案上傳。若是純文字/Markdown，`apps/api`
-直接分塊寫入索引；若是 PDF/Office 等二進位檔，先建立 `pending` 狀態文件、上傳原始檔到
-S3，再呼叫 `apps/converter` 轉出逐頁 markdown，回寫後分塊索引並將狀態改為 `ready`。
-索引完成後，資料庫 trigger 發出 NOTIFY，`apps/api` relay 給前端 WebSocket，前端即時更新
-文件清單，無需輪詢。
+**文字說明**：使用者在 `/wikis/:slug` 選擇檔案上傳，`apps/api`（`ingest.ts`）依 `fileType` 分三支：
+
+- **純文字 / Markdown**（`md`/`txt`）：直接分塊寫入索引，**不進 Storage**。
+- **圖片**（`png`/`jpg`/`jpeg`/`webp`/`gif`）：**跳過 converter**——建 `pending` 文件、上傳原始圖到
+  Storage，（可選）對圖跑 OCR 抽文字，`finalizeImageDocument()` 收斂 `ready`（有 OCR 文字則入
+  `content` + chunks，`document_raw.parser` 記 `ocr`／否則 `none`）。修好了原本圖片被當 binary
+  丟給 converter → 400 → 卡 pending 的壞路徑。
+- **PDF / Office 二進位**：建 `pending`、上傳 Storage、呼叫 `apps/converter` 轉出逐頁 markdown
+  **+ 內嵌圖 bytes**（`imageOutput: "embedded"`）；`finalizeExtractedDocument()` 把每張圖存成
+  `kind='asset'` 子文件（Storage key `/.assets/`、metadata `{hidden, parent_document_id, kind:'pdf_image'}`、
+  `file_hash` 去重）、寫 `document_pages.elements = {"images":[…]}`、把 page markdown 的
+  `odl-image:<id>` 改寫成 `asset:<assetDocId>`；（可選）對圖跑 OCR，文字併入該頁 chunk。
+
+OCR 為**可選**（`OCR_PROVIDER` 未設則 `none`，維持後端零 LLM）、**失敗優雅降級**（圖仍存、文件仍
+`ready`，只缺 OCR 文字）。索引完成後 trigger 發 NOTIFY → `apps/api` relay 給前端 WebSocket，
+前端即時更新文件清單，無需輪詢。
 
 ```mermaid
 sequenceDiagram
@@ -121,24 +132,36 @@ sequenceDiagram
     participant DB as PostgreSQL
 
     Web->>API: POST /v1/knowledge-bases/:slug/upload (multipart)
-    API->>API: 判斷 fileType
+    API->>API: 依 fileType 分流（TEXT / IMAGE / binary）
 
-    alt 純文字 / Markdown
+    alt 純文字 / Markdown (md, txt)
         API->>DB: fs.createDocument() (status='ready')
         API->>API: chunkText()
         API->>DB: INSERT document_chunks
+    else 圖片 (png/jpg/jpeg/webp/gif) — 跳過 converter
+        API->>DB: fs.createPendingDocument() (status='pending')
+        API->>S3: uploadBytes(userId/docId/source.ext)
+        opt OCR_PROVIDER != none
+            API->>API: ocrImageBytes()（失敗→降級，回 undefined）
+        end
+        API->>DB: fs.finalizeImageDocument()<br/>status='ready'、OCR 文字入 content+chunks<br/>document_raw.parser='ocr'|'none'
     else 二進位 (PDF/Office)
         API->>DB: fs.createPendingDocument() (status='pending')
-        API->>S3: uploadBytes(key=userId/docId/source.ext)
+        API->>S3: uploadBytes(userId/docId/source.ext)
         API->>Conv: POST /extract (presigned URL, Bearer)
         Conv->>S3: 下載來源檔案
         opt Office 檔
             Conv->>Conv: LibreOffice → PDF
         end
-        Conv->>Conv: opendataloader → per-page markdown
-        Conv-->>API: { pages, page_count }
-        API->>DB: fs.finalizeExtractedDocument()<br/>寫入 document_pages
-        API->>API: chunkPages()
+        Conv->>Conv: opendataloader (imageOutput=embedded)<br/>→ per-page markdown + 內嵌圖 bytes
+        Conv-->>API: { pages:[{content, images}], page_count }
+        opt OCR_PROVIDER != none
+            API->>API: ocrPageImages()（每張圖填 ocrText，失敗→降級）
+        end
+        API->>DB: fs.finalizeExtractedDocument()
+        Note over API,DB: 每張圖→asset 文件(/.assets/, file_hash 去重)<br/>寫 document_pages.elements={"images":[…]}<br/>markdown odl-image:<id> → asset:<assetDocId>
+        API->>S3: uploadBytes(userId/assetId/source.fmt)（每張圖）
+        API->>API: chunkPages()（含併入的 OCR 文字）
         API->>DB: INSERT document_chunks<br/>UPDATE documents SET status='ready'
     end
 
