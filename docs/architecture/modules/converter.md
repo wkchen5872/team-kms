@@ -1,6 +1,14 @@
+---
+type: Architecture
+title: 模組解析：apps/converter
+description: apps/converter 文件轉換微服務的支援格式、解析管線、核心檔案與依賴。
+tags: [architecture, module, converter]
+timestamp: 2025-07-02T00:00:00Z
+---
+
 # 模組解析：apps/converter
 
-[← 返回索引](../../architecture.md) · [模組地圖](../module-map.md)
+[← 返回索引](/docs/architecture.md) · [模組地圖](/docs/architecture/module-map.md)
 
 ## 職責
 
@@ -68,3 +76,7 @@ PDF ─────────────────────────�
 - 依賴 `@opendataloader/pdf`（需要 JVM）與系統的 LibreOffice 二進位。
 - Docker 映像需額外安裝 `default-jre-headless` + `libreoffice-writer/impress/calc`；
   根 `Dockerfile`（純 Node）不含這些依賴，因此 converter 有獨立的 `apps/converter/Dockerfile`。
+
+# Citations
+
+[1] [`@opendataloader/pdf` (npm)](https://www.npmjs.com/package/@opendataloader/pdf) — Node wrapper 直接呼叫 opendataloader 的同一個 Java CLI 引擎，佐證「與 Python 原版同一轉換引擎、零品質損失」的聲明。

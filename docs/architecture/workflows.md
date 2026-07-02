@@ -1,6 +1,14 @@
+---
+type: Architecture
+title: 核心業務流程與時序圖
+description: 資料庫 schema 摘要、documents 表設計概念，與上傳解析索引 / MCP 讀寫兩大核心流程時序圖。
+tags: [architecture, workflows, schema]
+timestamp: 2025-07-02T00:00:00Z
+---
+
 # 核心業務流程與時序圖
 
-[← 返回索引](../architecture.md)
+[← 返回索引](/docs/architecture.md)
 
 系統有兩個最核心的業務流程：**檔案上傳→解析→索引**，以及 **Claude 透過 MCP 搜尋/讀取/
 撰寫**。兩者共用同一組資料表（見下方 schema），互不呼叫，靠共用資料層維持一致性。

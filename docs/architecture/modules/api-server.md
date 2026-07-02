@@ -1,6 +1,14 @@
+---
+type: Architecture
+title: 模組解析：apps/api
+description: apps/api 的職責、核心檔案、REST/WebSocket 路由總表與依賴關係。
+tags: [architecture, module, api]
+timestamp: 2025-07-02T00:00:00Z
+---
+
 # 模組解析：apps/api
 
-[← 返回索引](../../architecture.md) · [模組地圖](../module-map.md)
+[← 返回索引](/docs/architecture.md) · [模組地圖](/docs/architecture/module-map.md)
 
 ## 職責
 

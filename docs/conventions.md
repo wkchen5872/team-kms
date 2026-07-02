@@ -1,3 +1,11 @@
+---
+type: Reference
+title: Coding Conventions & Styles
+description: Naming, formatting, and style rules ("muscle memory") for AI agents working in this repo.
+tags: [conventions, style, meta]
+timestamp: 2025-07-02T00:00:00Z
+---
+
 # 📝 Coding Conventions & Styles
 
 *This file defines the "Muscle Memory" for AI agents. Adhere to these styles strictly.*

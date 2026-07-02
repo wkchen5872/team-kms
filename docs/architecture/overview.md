@@ -1,6 +1,14 @@
+---
+type: Architecture
+title: 系統總覽與全域架構
+description: Team KMS 全域架構圖、資料流摘要、核心技術棧與部署拓樸。
+tags: [architecture, overview, mcp]
+timestamp: 2025-07-02T00:00:00Z
+---
+
 # 系統總覽與全域架構
 
-[← 返回索引](../architecture.md)
+[← 返回索引](/docs/architecture.md)
 
 ## 一句話總結
 
@@ -64,7 +72,7 @@ graph TD
 
 - **上傳/解析（Ingest）**：Web 上傳檔案 → `apps/api` → S3 → （PDF/Office）`apps/converter`
   轉出 per-page markdown → `apps/api` 分塊（chunker）→ 寫入 `document_chunks`（PGroonga 索引）。
-  純文字/Markdown 檔案略過 converter，直接分塊索引。詳見 [workflows.md](workflows.md)。
+  純文字/Markdown 檔案略過 converter，直接分塊索引。詳見 [workflows.md](/docs/architecture/workflows.md)。
 - **合成（Synthesis）**：Claude 透過 MCP `search`/`read` 查閱來源，再用 `create`/`edit`/`append`
   寫 wiki 頁。每次寫入都會解析內文中的 footnote citation 與 wiki link，更新
   `document_references` 圖譜邊，並回報「哪些頁面引用了剛編輯的這頁」。**後端全程零 LLM 呼叫**。

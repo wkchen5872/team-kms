@@ -1,6 +1,14 @@
+---
+type: Architecture
+title: 模組解析：apps/mcp
+description: apps/mcp 作為 Claude 唯一入口的 10 個 MCP 工具、核心檔案與依賴。
+tags: [architecture, module, mcp]
+timestamp: 2025-07-02T00:00:00Z
+---
+
 # 模組解析：apps/mcp
 
-[← 返回索引](../../architecture.md) · [模組地圖](../module-map.md)
+[← 返回索引](/docs/architecture.md) · [模組地圖](/docs/architecture/module-map.md)
 
 ## 職責
 
@@ -47,7 +55,7 @@
 
 ### `references-sync.ts`
 - 每次 `create`/`edit`/`append` 完成後呼叫 `updateReferences()`，重建該文件的引用圖譜邊
-  （citations + wiki links），詳見 [workflows.md](../workflows.md) 的第二個核心流程。
+  （citations + wiki links），詳見 [workflows.md](/docs/architecture/workflows.md) 的第二個核心流程。
 
 ## 依賴關係
 

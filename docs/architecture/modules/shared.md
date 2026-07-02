@@ -1,6 +1,14 @@
+---
+type: Architecture
+title: 模組解析：packages/shared
+description: packages/shared 共用基礎設施——config、RLS 資料庫存取、JWT、S3、chunker、references、PostgresVaultFS。
+tags: [architecture, module, shared]
+timestamp: 2025-07-02T00:00:00Z
+---
+
 # 模組解析：packages/shared
 
-[← 返回索引](../../architecture.md) · [模組地圖](../module-map.md)
+[← 返回索引](/docs/architecture.md) · [模組地圖](/docs/architecture/module-map.md)
 
 ## 職責
 
@@ -64,7 +72,7 @@
 | 知識庫 | `resolveKb(slug)`、`listKnowledgeBases()`、`createKnowledgeBase()` |
 | 文件 CRUD | `getDocument()`、`getDocumentById()`、`createDocument()`、`updateDocument()`、`createPendingDocument()`、`finalizeExtractedDocument()`、`listDocuments()`、`listDocumentsWithContent()`、`archiveDocuments()` |
 | 分頁來源 | `getPages()`、`getAllPages()`（PDF/Office 等分頁來源的分段讀取） |
-| 全文搜尋 | `searchChunks(kbId, query, limit, pathFilter)`——PGroonga 全文索引查詢，見 [workflows.md](../workflows.md) |
+| 全文搜尋 | `searchChunks(kbId, query, limit, pathFilter)`——PGroonga 全文索引查詢，見 [workflows.md](/docs/architecture/workflows.md) |
 | 引用圖譜 | `deleteReferences()`、`upsertReference()`、`getBacklinks()`、`getForwardReferences()`、`findUncitedSources()`、`findStalePages()`、`propagateStaleness()`、`listReferences()` |
 | S3 資產載入 | `loadSourceBytes()`、`loadImageBytes()`、`loadAssetBytes()` |
 

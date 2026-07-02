@@ -1,6 +1,14 @@
+---
+type: Architecture
+title: 模組解析：apps/web
+description: apps/web Next.js 14 前端的路由、元件、狀態層、認證與上傳/下載/圖譜流程。
+tags: [architecture, module, web]
+timestamp: 2025-07-02T00:00:00Z
+---
+
 # 模組解析：apps/web
 
-[← 返回索引](../../architecture.md) · [模組地圖](../module-map.md)
+[← 返回索引](/docs/architecture.md) · [模組地圖](/docs/architecture/module-map.md)
 
 ## 職責
 
@@ -94,3 +102,7 @@ GET /v1/knowledge-bases/:slug/graph
 - 關鍵套件：`next@^14`、`react@^18`、`@supabase/supabase-js`、`zustand`、`next-themes`、
   `lucide-react`、`cmdk`、`framer-motion`、Radix UI、`sonner`、`tus-js-client`、
   `react-markdown`、`mermaid`、`react-force-graph-2d`。
+
+# Citations
+
+[1] [lucasastorian/llmwiki](https://github.com/lucasastorian/llmwiki) — 前端 UI 移植來源（React-18 相容子集，未升 Tailwind v4）。
