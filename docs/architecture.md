@@ -36,6 +36,7 @@ Web     ──REST (Supabase JWT)───────►  apps/api   ├─► 
 | [`architecture/modules/api-server.md`](/docs/architecture/modules/api-server.md) | `apps/api` 深度解析（REST 路由、TUS 上傳、解析佇列、WebSocket） |
 | [`architecture/modules/converter.md`](/docs/architecture/modules/converter.md) | `apps/converter` 深度解析（opendataloader、LibreOffice、SSRF） |
 | [`architecture/modules/web.md`](/docs/architecture/modules/web.md) | `apps/web` 深度解析（路由、元件、認證、上傳、圖譜視覺化） |
+| [`architecture/database.md`](/docs/architecture/database.md) | **資料庫權威參考**：逐表 schema/RLS/trigger、核心設計概念、每張表的讀寫 module、新增/修改資料流速查 |
 | [`architecture/workflows.md`](/docs/architecture/workflows.md) | DB schema 摘要、`documents` 表設計概念（frontmatter 為真相來源、衍生欄位）、兩大核心流程時序圖（上傳解析索引 / MCP 搜尋讀取撰寫） |
 | [`architecture/dev-guide.md`](/docs/architecture/dev-guide.md) | 擴展性與維護指南（新增解析器/MCP 工具/API 路由/前端頁面/migration 的切入點） |
 
