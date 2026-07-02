@@ -4,7 +4,7 @@ import { PostgresVaultFS, s3FromConfig, serviceExecute, closePool, type S3Servic
 import { app as converterApp } from "@team-kms/converter/app";
 import { makePdf } from "@team-kms/converter/test-pdf";
 import { HttpConverterClient } from "./converter-client.js";
-import { ingestSource, type IngestDeps } from "./ingest.js";
+import { ingestSource, ingestAsync, type IngestDeps } from "./ingest.js";
 
 const userId = randomUUID();
 let deps: IngestDeps;
@@ -54,6 +54,53 @@ describe.skipIf(!process.env.DATABASE_URL)("ingestSource", () => {
     const kb2 = (await deps.fs.createKnowledgeBase("Ingest KB 2")).id;
     const other = await ingestSource(deps, { kbId: kb2, filename: "dedup-a.md", fileType: "md", bytes });
     expect(other.id).not.toBe(first.id);
+  });
+
+  it("uploads a raster image without the converter and converges to ready", async () => {
+    // A 1x1 PNG — valid image bytes, never sent to the PDF/Office converter.
+    const png = Buffer.from(
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
+      "base64",
+    );
+    const doc = await ingestSource(deps, { kbId, filename: "diagram.png", fileType: "png", bytes: png });
+    // It is a normal (non-asset) source doc, visible in the grid, and ready.
+    const docs = await deps.fs.listDocuments(kbId);
+    const row = docs.find((d) => d.id === doc.id);
+    expect(row?.status).toBe("ready");
+  });
+
+  it("finalizeExtractedDocument stores embedded images as assets + elements", async () => {
+    const pngB64 =
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
+    const pending = await deps.fs.createPendingDocument(kbId, "figs.pdf", "figs", "/", "pdf", undefined, 123, "hash-figs-1");
+    await deps.fs.finalizeExtractedDocument(pending.id, kbId, [
+      { page: 1, content: "Intro\n\n![image](odl-image:img-p1-1.png)", images: [{ id: "img-p1-1.png", dataBase64: pngB64, format: "png" }] },
+    ]);
+    const pages = await deps.fs.getAllPages(pending.id);
+    const elements = (pages[0] as { elements?: { images?: { id: string; src: string }[] } }).elements;
+    expect(elements?.images?.length).toBe(1);
+    const assetId = elements!.images![0]!.id;
+    expect(pages[0]!.content).toContain(`asset:${assetId}`);
+    expect(pages[0]!.content).not.toContain("odl-image:");
+    // asset bytes are retrievable from Storage
+    const bytes = await deps.fs.loadAssetBytes(assetId);
+    expect(bytes && bytes.length).toBeGreaterThan(0);
+    // asset docs are hidden from the grid
+    const docs = await deps.fs.listDocuments(kbId);
+    expect(docs.some((d) => d.id === assetId)).toBe(false);
+  });
+
+  it("ingestAsync returns ready for text and pending (enqueued) for binary", async () => {
+    const md = await ingestAsync(
+      { fs: deps.fs, s3 },
+      { kbId, filename: "async-note.md", fileType: "md", bytes: Buffer.from("The async note body indexes fine. ".repeat(6)) },
+    );
+    expect(md.status).toBe("ready");
+    const pdf = await ingestAsync(
+      { fs: deps.fs, s3 },
+      { kbId, filename: "async.pdf", fileType: "pdf", bytes: makePdf("async pdf body across the rim ".repeat(4)) },
+    );
+    expect(pdf.status).toBe("pending"); // handed to the queue, not extracted inline
   });
 
   it("ingests a PDF end-to-end: S3 → converter → pages → chunks", async () => {

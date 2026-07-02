@@ -23,7 +23,7 @@ describe.skipIf(!hasLibreOffice)("Office → PDF → markdown", () => {
       const docx = join(dir, "report.docx");
       await writeFile(docx, makeDocx("Zoltaxian quarterly report covers interstellar trade volumes in detail."));
       const pdf = await officeToPdf(docx, dir);
-      const pages = await extractPages(pdf);
+      const { pages } = await extractPages(pdf);
       expect(pages.map((p) => p.content).join(" ")).toContain("Zoltaxian");
     } finally {
       await rm(dir, { recursive: true, force: true });

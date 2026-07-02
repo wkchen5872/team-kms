@@ -250,10 +250,22 @@ function WikiImage({
   const [loading, setLoading] = React.useState(false)
 
   React.useEffect(() => {
-    if (!src || !documents || !token) return
+    if (!src || !token) return
     // Only resolve relative paths (not http:// or data: URIs)
     if (src.startsWith('http') || src.startsWith('data:')) return
 
+    // `asset:<docId>` — a PDF-extracted image stored as an asset document.
+    if (src.startsWith('asset:')) {
+      const assetId = src.slice('asset:'.length)
+      setLoading(true)
+      apiFetch<{ url: string }>(`/v1/documents/${assetId}/source-url`, token)
+        .then((res) => setImageUrl(res.url))
+        .catch(() => { /* silent fail */ })
+        .finally(() => setLoading(false))
+      return
+    }
+
+    if (!documents) return
     // Resolve relative path: strip leading ./ and resolve against current wiki path
     let filename = src.replace(/^\.\//, '')
     const doc = documents.find((d) => {

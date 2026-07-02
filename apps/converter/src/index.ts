@@ -19,6 +19,18 @@ const PDF_EXTENSIONS = new Set(["pdf"]);
 const SUPPORTED = new Set([...OFFICE_EXTENSIONS, ...PDF_EXTENSIONS]);
 const MAX_SOURCE_BYTES = 200 * 1024 * 1024;
 const MAX_CONCURRENT = Number(process.env.MAX_CONCURRENT_EXTRACTIONS ?? "2");
+const EXTRACT_TIMEOUT_MS = Number(process.env.EXTRACT_TIMEOUT_MS ?? "300000");
+
+/** Reject if `p` doesn't settle within `ms`, so a hung extraction releases its slot. */
+function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(`extraction timed out after ${ms}ms`)), ms);
+    p.then(
+      (v) => { clearTimeout(timer); resolve(v); },
+      (e) => { clearTimeout(timer); reject(e); },
+    );
+  });
+}
 
 const SECRET = process.env.CONVERTER_SECRET ?? "";
 const BUCKET = process.env.S3_BUCKET ?? "";
@@ -63,10 +75,26 @@ app.post("/extract", async (c) => {
   const dir = await mkdtemp(join(tmpdir(), "convert-"));
   try {
     const sourcePath = join(dir, `source.${ext}`);
-    await downloadToFile(body.source_url, sourcePath, MAX_SOURCE_BYTES);
-    const pdfPath = OFFICE_EXTENSIONS.has(ext) ? await officeToPdf(sourcePath, dir) : sourcePath;
-    const pages = await extractPages(pdfPath);
-    return c.json({ pages, page_count: pages.length, ...(body.request_id ? { request_id: body.request_id } : {}) });
+    // Hard timeout on the whole extraction: opendataloader's Java CLI has no
+    // internal timeout, so a hung run would otherwise never release `active`
+    // and wedge the converter at capacity permanently.
+    const { pages, warnings } = await withTimeout(
+      (async () => {
+        await downloadToFile(body.source_url!, sourcePath, MAX_SOURCE_BYTES);
+        const pdfPath = OFFICE_EXTENSIONS.has(ext) ? await officeToPdf(sourcePath, dir) : sourcePath;
+        return extractPages(pdfPath, {
+          maxImageBytes: process.env.MAX_IMAGE_BYTES ? Number(process.env.MAX_IMAGE_BYTES) : undefined,
+          maxImagesPerPage: process.env.MAX_IMAGES_PER_PAGE ? Number(process.env.MAX_IMAGES_PER_PAGE) : undefined,
+        });
+      })(),
+      EXTRACT_TIMEOUT_MS,
+    );
+    return c.json({
+      pages,
+      page_count: pages.length,
+      ...(warnings.length ? { warnings } : {}),
+      ...(body.request_id ? { request_id: body.request_id } : {}),
+    });
   } catch (err) {
     return c.json({ error: (err as Error).message }, 500);
   } finally {

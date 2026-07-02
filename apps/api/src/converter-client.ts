@@ -1,7 +1,13 @@
 /** HTTP client for the converter service. */
+export interface PageImage {
+  id: string;
+  dataBase64: string;
+  format: string;
+}
 export interface PageContent {
   page: number;
   content: string;
+  images: PageImage[];
 }
 
 export interface ConverterClient {

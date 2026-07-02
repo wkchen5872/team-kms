@@ -19,9 +19,10 @@ import {
   serviceExecute,
 } from "@team-kms/shared";
 import { HttpConverterClient } from "./converter-client.js";
-import { ingestSource } from "./ingest.js";
+import { ingestSource, ingestAsync } from "./ingest.js";
 import { startDocumentListener, subscribe } from "./notify.js";
 import { setProcessor, recoverStuckJobs, extractionProcessor } from "./jobs.js";
+import { ocrProviderFromEnv } from "./ocr.js";
 import {
   TUS_VERSION,
   decodeMetadata,
@@ -50,7 +51,7 @@ app.use(
     origin: [process.env.APP_URL ?? "http://localhost:3000", "http://localhost:3000", "http://127.0.0.1:3000"],
     allowMethods: ["GET", "POST", "PATCH", "DELETE", "HEAD", "OPTIONS"],
     allowHeaders: ["Authorization", "Content-Type", "Upload-Length", "Upload-Offset", "Upload-Metadata", "Tus-Resumable"],
-    exposeHeaders: ["Location", "Upload-Offset", "Upload-Length", "Tus-Resumable", "X-Document-Id"],
+    exposeHeaders: ["Location", "Upload-Offset", "Upload-Length", "Tus-Resumable", "X-Document-Id", "X-Document-Status"],
   }),
 );
 
@@ -287,7 +288,7 @@ app.post("/v1/knowledge-bases/:slug/upload", async (c) => {
   const fileType = (file.name.split(".").pop() ?? "").toLowerCase();
   const bytes = Buffer.from(await file.arrayBuffer());
 
-  const doc = await ingestSource({ fs, s3: s3FromConfig(), converter: buildConverter() }, {
+  const doc = await ingestSource({ fs, s3: s3FromConfig(), converter: buildConverter(), ocr: ocrProviderFromEnv() }, {
     kbId: kb.id,
     filename: file.name,
     fileType,
@@ -353,7 +354,9 @@ app.patch("/v1/files/:id", async (c) => {
     const fs = c.get("fs");
     const kb = await fs.resolveKb(up.kbSlug);
     if (!kb) return c.json({ error: "Knowledge base not found" }, 404);
-    const doc = await ingestSource({ fs, s3: s3FromConfig(), converter: buildConverter() }, {
+    // Async: upload + enqueue, return immediately. The single-threaded queue does
+    // extraction/OCR one doc at a time, so uploads never saturate the converter.
+    const doc = await ingestAsync({ fs, s3: s3FromConfig() }, {
       kbId: kb.id,
       filename: up.filename,
       fileType: up.fileType,
@@ -361,6 +364,7 @@ app.patch("/v1/files/:id", async (c) => {
     });
     deleteUpload(id);
     c.header("X-Document-Id", doc.id);
+    c.header("X-Document-Status", doc.status);
   }
   return c.body(null, 204);
 });
@@ -370,7 +374,7 @@ if (process.env.NODE_ENV !== "test") {
   const server = serve({ fetch: app.fetch, port }) as unknown as import("node:http").Server;
   void startDocumentListener();
   // Async extraction queue + recover anything left mid-flight by a prior crash.
-  setProcessor(extractionProcessor(s3FromConfig(), buildConverter()));
+  setProcessor(extractionProcessor(s3FromConfig(), buildConverter(), ocrProviderFromEnv()));
   void recoverStuckJobs();
 
   // Real-time document changes: ws://…/v1/ws/kb/:kbId?token=<supabase-jwt>

@@ -8,6 +8,7 @@
  * single PGroonga-indexed column and drops the annotation scope filters.
  */
 import type pg from "pg";
+import { createHash } from "node:crypto";
 import { getPool, scopedQuery, scopedQueryRow, scopedExecute, serviceQueryRow, serviceExecute } from "./db.js";
 import { chunkText, chunkPages, type Chunk } from "./chunker.js";
 import { S3Service, s3FromConfig } from "./s3.js";
@@ -24,6 +25,16 @@ export class DuplicateDocumentError extends Error {
 }
 
 export type DocumentKind = "raw" | "wiki" | "asset";
+
+/** An image extracted by the converter (base64 bytes) awaiting asset storage. */
+export interface ExtractedImage {
+  /** converter-local id, e.g. "img-p1-1.png", referenced in page markdown as `odl-image:<id>` */
+  id: string;
+  dataBase64: string;
+  format: string;
+  /** OCR text, filled by the ingest layer (api) before finalize; optional. */
+  ocrText?: string;
+}
 
 export interface KnowledgeBaseRow {
   id: string;
@@ -326,33 +337,31 @@ export class PostgresVaultFS {
   async finalizeExtractedDocument(
     docId: string,
     kbId: string,
-    pages: { page: number; content: string }[],
+    pages: { page: number; content: string; images?: ExtractedImage[] }[],
   ): Promise<void> {
-    const content = pages.map((p) => p.content).join("\n\n");
     const client = await getPool().connect();
     try {
       await client.query("BEGIN");
       await client.query("DELETE FROM document_pages WHERE document_id = $1", [docId]);
+      const finalized: [number, string][] = [];
       for (const p of pages) {
+        // Store each embedded image as an asset, rewrite `odl-image:<id>` tokens to
+        // `asset:<assetDocId>`, and record image refs in the page's elements JSON.
+        const { content, elements } = await this.persistPageImages(client, docId, kbId, p.content, p.images ?? []);
         await client.query(
-          "INSERT INTO document_pages (document_id, page, content) VALUES ($1, $2, $3)",
-          [docId, p.page, p.content],
+          "INSERT INTO document_pages (document_id, page, content, elements) VALUES ($1, $2, $3, $4::jsonb)",
+          [docId, p.page, content, elements ? JSON.stringify(elements) : null],
         );
+        finalized.push([p.page, content]);
       }
       await client.query(
         "UPDATE documents SET content = $1, page_count = $2, status = 'ready', updated_at = now() " +
           "WHERE id = $3 AND user_id = $4",
-        [content, pages.length, docId, this.userId],
+        [finalized.map(([, c]) => c).join("\n\n"), pages.length, docId, this.userId],
       );
       // parser lives in the document_raw detail table (row created at pending time).
       await client.query("UPDATE document_raw SET parser = 'opendataloader' WHERE document_id = $1", [docId]);
-      await storeChunksOnClient(
-        client,
-        docId,
-        this.userId,
-        kbId,
-        chunkPages(pages.map((p) => [p.page, p.content] as [number, string])),
-      );
+      await storeChunksOnClient(client, docId, this.userId, kbId, chunkPages(finalized));
       await client.query("COMMIT");
     } catch (err) {
       await client.query("ROLLBACK").catch(() => {});
@@ -360,6 +369,95 @@ export class PostgresVaultFS {
     } finally {
       client.release();
     }
+  }
+
+  /** Mark a directly-uploaded raster image document ready (no converter pages).
+   *  If OCR text is supplied it becomes the doc content and is chunked for search. */
+  async finalizeImageDocument(docId: string, kbId?: string, ocrText?: string): Promise<void> {
+    const text = (ocrText ?? "").trim();
+    const client = await getPool().connect();
+    try {
+      await client.query("BEGIN");
+      await client.query(
+        "UPDATE documents SET status = 'ready', content = $1, updated_at = now() WHERE id = $2 AND user_id = $3",
+        [text, docId, this.userId],
+      );
+      await client.query("UPDATE document_raw SET parser = $2 WHERE document_id = $1", [docId, text ? "ocr" : "none"]);
+      if (text && kbId) await storeChunksOnClient(client, docId, this.userId, kbId, chunkText(text));
+      await client.query("COMMIT");
+    } catch (err) {
+      await client.query("ROLLBACK").catch(() => {});
+      throw err;
+    } finally {
+      client.release();
+    }
+  }
+
+  /**
+   * Persist a page's embedded images as asset documents (deduped by file_hash),
+   * upload bytes to Storage, rewrite `odl-image:<localId>` tokens in the markdown
+   * to `asset:<assetDocId>`, and return the page's `{images:[...]}` elements.
+   * If Storage isn't configured the image tokens are stripped (no assets created).
+   */
+  private async persistPageImages(
+    client: pg.PoolClient,
+    parentDocId: string,
+    kbId: string,
+    content: string,
+    images: ExtractedImage[],
+  ): Promise<{ content: string; elements: { images: { id: string; src: string; filename: string }[] } | null }> {
+    if (!images.length) return { content, elements: null };
+    if (!this.s3) {
+      // No Storage → drop the image links rather than leave dangling tokens.
+      const stripped = content.replace(/!\[image\]\(odl-image:[^)]+\)/g, "").replace(/\n{3,}/g, "\n\n").trim();
+      return { content: stripped, elements: null };
+    }
+    let out = content;
+    const refs: { id: string; src: string; filename: string }[] = [];
+    const ocrTexts: string[] = [];
+    for (const img of images) {
+      const bytes = Buffer.from(img.dataBase64, "base64");
+      const fileHash = createHash("sha256").update(bytes).digest("hex");
+      const ocr = (img.ocrText ?? "").trim();
+      let asset = await client.query<{ id: string; filename: string }>(
+        "SELECT id, filename FROM documents WHERE knowledge_base_id = $1 AND file_hash = $2 " +
+          "AND kind = 'asset' AND user_id = $3 LIMIT 1",
+        [kbId, fileHash, this.userId],
+      );
+      let assetId: string;
+      let filename: string;
+      if (asset.rows[0]) {
+        assetId = asset.rows[0].id;
+        filename = asset.rows[0].filename;
+      } else {
+        filename = `${fileHash.slice(0, 12)}.${img.format}`;
+        const ins = await client.query<{ id: string }>(
+          "INSERT INTO documents (knowledge_base_id, user_id, filename, title, path, file_type, kind, " +
+            "status, content, tags, metadata, file_size, file_hash, version) " +
+            "VALUES ($1, $2, $3, $3, '/.assets/', $4, 'asset', 'ready', $5, '{}', $6::jsonb, $7, $8, 1) RETURNING id",
+          [
+            kbId,
+            this.userId,
+            filename,
+            img.format,
+            ocr,
+            JSON.stringify({ hidden: true, parent_document_id: parentDocId, kind: "pdf_image" }),
+            bytes.length,
+            fileHash,
+          ],
+        );
+        assetId = ins.rows[0]!.id;
+        await client.query("INSERT INTO document_raw (document_id) VALUES ($1)", [assetId]);
+        await this.s3.uploadBytes(`${this.userId}/${assetId}/source.${img.format}`, bytes, `image/${img.format}`);
+      }
+      const src = `asset:${assetId}`;
+      out = out.split(`odl-image:${img.id}`).join(src);
+      refs.push({ id: assetId, src, filename });
+      if (ocr) ocrTexts.push(ocr);
+    }
+    // Append OCR text to the page so image-borne content (tables/flowcharts) is chunked + searchable.
+    if (ocrTexts.length) out = `${out}\n\n${ocrTexts.join("\n\n")}`.trim();
+    return { content: out, elements: { images: refs } };
   }
 
   async archiveDocuments(docIds: string[]): Promise<number> {

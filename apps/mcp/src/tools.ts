@@ -224,6 +224,40 @@ export class WikiTools {
     return `# ${doc.title || doc.filename}\n\n${content}${await backlinksSummary(this.fs, doc.id)}`;
   }
 
+  /** Load base64 image blocks for a doc/pages (for MCP `read(include_images=true)`).
+   *  Covers both a doc that IS a raster image and images embedded in PDF pages. */
+  async readImages(path: string, pages?: string): Promise<{ images: { data: string; mimeType: string }[]; capped: boolean }> {
+    const MAX = 12;
+    const [dirPath, filename] = resolvePath(path);
+    let doc = await this.fs.getDocument(this.kbId, filename, dirPath);
+    if (!doc) doc = await this.fs.findDocumentByName(this.kbId, filename);
+    if (!doc) return { images: [], capped: false };
+
+    const out: { data: string; mimeType: string }[] = [];
+    const RASTER = ["png", "jpg", "jpeg", "webp", "gif"];
+    const docType = ((doc.file_type as string) ?? "").toLowerCase();
+    if (RASTER.includes(docType)) {
+      const bytes = await this.fs.loadSourceBytes({ id: doc.id as string, file_type: docType });
+      if (bytes) out.push({ data: bytes.toString("base64"), mimeType: `image/${docType}` });
+    }
+
+    const total = (doc.page_count as number) ?? 0;
+    const wanted = pages && pages.trim() ? parsePageRange(pages, Math.max(total, 1)) : [];
+    const rows = wanted.length ? await this.fs.getPages(doc.id, wanted) : await this.fs.getAllPages(doc.id);
+    for (const r of rows) {
+      const els = (r as { elements?: { images?: { id: string; filename?: string }[] } }).elements;
+      for (const im of els?.images ?? []) {
+        if (out.length >= MAX) return { images: out, capped: true };
+        const bytes = await this.fs.loadAssetBytes(im.id);
+        if (bytes) {
+          const fmt = (im.filename?.split(".").pop() ?? "png").toLowerCase();
+          out.push({ data: bytes.toString("base64"), mimeType: `image/${fmt}` });
+        }
+      }
+    }
+    return { images: out, capped: false };
+  }
+
   private async readGlob(pattern: string): Promise<string> {
     const pat = pattern.startsWith("/") ? pattern : `/${pattern.replace(/^\/+/, "")}`;
     const docs = (await this.fs.listDocuments(this.kbId)).filter((d) => globMatch(d.path + d.filename, pat));

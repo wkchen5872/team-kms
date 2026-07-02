@@ -678,6 +678,25 @@ export function KBDetail({ kbId, kbSlug, kbName, viewMode, routeFilesPath }: Pro
     reconcileUploads(kbId, documents)
   }, [kbId, documents, processingUploads, reconcileUploads])
 
+  // Upload hints: one toast per upload, updated in place as it moves
+  // uploading → processing → ready/failed (driven by the WebSocket-fed store).
+  const uploadItems = useUploadStore((s) => s.items)
+  const uploadPhaseRef = React.useRef<Map<string, string>>(new Map())
+  React.useEffect(() => {
+    for (const it of uploadItems) {
+      if (uploadPhaseRef.current.get(it.id) === it.phase) continue
+      uploadPhaseRef.current.set(it.id, it.phase)
+      const name = it.filename
+      if (it.phase === 'uploading') toast.loading(`上傳中：${name}`, { id: it.id })
+      else if (it.phase === 'processing') toast.loading(`已上傳，處理中：${name}`, { id: it.id })
+      else if (it.phase === 'ready') toast.success(`處理完成：${name}`, { id: it.id })
+      else if (it.phase === 'failed') toast.error(`處理失敗：${name}${it.error ? ` — ${it.error}` : ''}`, { id: it.id })
+    }
+    for (const id of Array.from(uploadPhaseRef.current.keys())) {
+      if (!uploadItems.some((x) => x.id === id)) uploadPhaseRef.current.delete(id)
+    }
+  }, [uploadItems])
+
   React.useEffect(() => {
     if (!openRequest || openRequest.kbId !== kbId) return
     const doc = documents.find((d) => d.document_number === openRequest.documentNumber)

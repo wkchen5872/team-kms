@@ -96,10 +96,30 @@ export function buildMcpServer(fs: PostgresVaultFS): McpServer {
       description:
         "Read document content. Read a single file by `path`, or a glob pattern to batch-read " +
         "multiple files. For paginated sources (PDF / Office), pass `pages` (e.g. \"1-10\" or \"3,5,7\") " +
-        "to read specific pages. Reading a wiki page also shows its backlinks (which pages reference it).",
-      inputSchema: { knowledge_base: z.string(), path: z.string(), pages: z.string().optional() },
+        "to read specific pages. Reading a wiki page also shows its backlinks (which pages reference it). " +
+        "Set `include_images=true` to also return embedded/attached images (figures, charts, flowcharts) " +
+        "as image blocks so you can interpret them visually (max 12).",
+      inputSchema: {
+        knowledge_base: z.string(),
+        path: z.string(),
+        pages: z.string().optional(),
+        include_images: z.boolean().optional(),
+      },
     },
-    async (a) => withKb(a.knowledge_base, (t) => t.read(a.path, a.pages)),
+    async (a) => {
+      const kb = await fs.resolveKb(a.knowledge_base);
+      if (!kb) return text(`Knowledge base '${a.knowledge_base}' not found.`);
+      const t = new WikiTools(fs, kb);
+      const body = await t.read(a.path, a.pages);
+      if (!a.include_images) return text(body);
+      const { images, capped } = await t.readImages(a.path, a.pages);
+      return {
+        content: [
+          { type: "text" as const, text: body + (capped ? "\n\n_(images capped at 12)_" : "") },
+          ...images.map((im) => ({ type: "image" as const, data: im.data, mimeType: im.mimeType })),
+        ],
+      };
+    },
   );
 
   server.registerTool(

@@ -12,6 +12,9 @@ import {
   type S3Service,
 } from "@team-kms/shared";
 import type { ConverterClient } from "./converter-client.js";
+import { ocrImageBytes, ocrPageImages, type OcrProvider } from "./ocr.js";
+
+const IMAGE_TYPES = new Set(["png", "jpg", "jpeg", "webp", "gif"]);
 
 export type Processor = (docId: string) => Promise<void>;
 
@@ -55,7 +58,7 @@ export async function recoverStuckJobs(): Promise<number> {
 }
 
 /** The real processor: presign the S3 source, extract, and finalize. */
-export function extractionProcessor(s3: S3Service, converter: ConverterClient): Processor {
+export function extractionProcessor(s3: S3Service, converter: ConverterClient, ocr: OcrProvider | null = null): Processor {
   return async (docId: string) => {
     const doc = await serviceQueryRow<{
       id: string;
@@ -66,10 +69,18 @@ export function extractionProcessor(s3: S3Service, converter: ConverterClient): 
     if (!doc) return;
     await serviceExecute("UPDATE documents SET status = 'processing' WHERE id = $1", [docId]);
     try {
+      const fs = new PostgresVaultFS(doc.user_id);
       const key = `${doc.user_id}/${docId}/source.${doc.file_type}`;
+      // Raster images never go through the PDF/Office converter.
+      if (IMAGE_TYPES.has(doc.file_type)) {
+        const ocrText = await ocrImageBytes(ocr, await s3.downloadBytes(key), doc.file_type);
+        await fs.finalizeImageDocument(docId, doc.knowledge_base_id, ocrText);
+        return;
+      }
       const url = await s3.generatePresignedGet(key);
       const pages = await converter.extract(url, doc.file_type);
-      await new PostgresVaultFS(doc.user_id).finalizeExtractedDocument(docId, doc.knowledge_base_id, pages);
+      await ocrPageImages(ocr, pages);
+      await fs.finalizeExtractedDocument(docId, doc.knowledge_base_id, pages);
     } catch (err) {
       // status lives on documents; error_message on the document_raw detail row.
       await serviceExecute("UPDATE documents SET status = 'failed' WHERE id = $1", [docId]);

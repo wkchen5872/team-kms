@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
-import { PostgresVaultFS, serviceExecute, serviceQueryRow, closePool } from "@team-kms/shared";
+import { PostgresVaultFS, s3FromConfig, serviceExecute, serviceQueryRow, closePool } from "@team-kms/shared";
 import { buildMcpServer } from "./server.js";
 
 const userId = randomUUID();
@@ -110,5 +110,31 @@ describe.skipIf(!process.env.DATABASE_URL)("MCP tools over the protocol", () => 
   it("protects core pages from deletion", async () => {
     expect(await call("delete", { knowledge_base: "mcp-kb", path: "/wiki/overview.md" })).toContain("Protected");
     expect(await call("delete", { knowledge_base: "mcp-kb", path: "/wiki/concepts/attention.md" })).toContain("Deleted");
+  });
+
+  it("read(include_images) returns image blocks; default returns text only", async () => {
+    const png = Buffer.from(
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
+      "base64",
+    );
+    const fs = new PostgresVaultFS(userId);
+    const kb = (await fs.resolveKb("mcp-kb"))!;
+    const s3 = s3FromConfig();
+    await s3.ensureBucket();
+    const pending = await fs.createPendingDocument(kb.id, "chart.png", "chart", "/", "png", undefined, png.length, "mcp-img-hash");
+    await s3.uploadBytes(`${userId}/${pending.id}/source.png`, png, "image/png");
+    await fs.finalizeImageDocument(pending.id, kb.id);
+
+    const withImgs = (await client.callTool({
+      name: "read",
+      arguments: { knowledge_base: "mcp-kb", path: "/chart.png", include_images: true },
+    })) as { content: { type: string }[] };
+    expect(withImgs.content.some((b) => b.type === "image")).toBe(true);
+
+    const textOnly = (await client.callTool({
+      name: "read",
+      arguments: { knowledge_base: "mcp-kb", path: "/chart.png" },
+    })) as { content: { type: string }[] };
+    expect(textOnly.content.every((b) => b.type === "text")).toBe(true);
   });
 });
