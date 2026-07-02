@@ -6,8 +6,10 @@
  * caching, and key-rotation/cooldown — replacing the hand-rolled JWKS cache in
  * the Python `api/auth.py`.
  */
+import { createHash } from "node:crypto";
 import { createRemoteJWKSet, jwtVerify, decodeJwt, type JWTPayload } from "jose";
 import { loadConfig } from "./config.js";
+import { serviceQueryRow, serviceExecute } from "./db.js";
 
 export interface VerifiedUser {
   userId: string;
@@ -52,6 +54,35 @@ export async function getCurrentUser(authHeader: string | null | undefined): Pro
   const token = extractBearer(authHeader);
   if (!token) throw new Error("Missing authorization header");
   return verifyToken(token);
+}
+
+/** SHA-256 hash of an API key (matches how api-keys are stored/looked up). */
+export function hashApiKey(key: string): string {
+  return createHash("sha256").update(key).digest("hex");
+}
+
+/**
+ * Resolve a bearer token to a user id, accepting BOTH a `tkms_` API key
+ * (hashed lookup in api_keys, service-role) and a Supabase JWT. Returns null
+ * if neither resolves. Shared by the REST API and the MCP server so programmatic
+ * Claude access via API keys works against MCP too.
+ */
+export async function resolveUserId(token: string): Promise<string | null> {
+  if (token.startsWith("tkms_")) {
+    const keyHash = hashApiKey(token);
+    const row = await serviceQueryRow<{ user_id: string }>(
+      "SELECT user_id FROM api_keys WHERE key_hash = $1 AND revoked_at IS NULL",
+      [keyHash],
+    );
+    if (!row) return null;
+    void serviceExecute("UPDATE api_keys SET last_used_at = now() WHERE key_hash = $1", [keyHash]);
+    return row.user_id;
+  }
+  try {
+    return (await verifyToken(token)).userId;
+  } catch {
+    return null;
+  }
 }
 
 /** Decode without verifying — for logging/inspection only, never for auth. */

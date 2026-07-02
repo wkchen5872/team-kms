@@ -6,7 +6,7 @@
 import { Hono } from "hono";
 import { serve } from "@hono/node-server";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
-import { PostgresVaultFS, verifyToken, extractBearer } from "@team-kms/shared";
+import { PostgresVaultFS, resolveUserId, extractBearer } from "@team-kms/shared";
 import { buildMcpServer } from "./server.js";
 
 export const app = new Hono();
@@ -16,12 +16,9 @@ app.get("/health", (c) => c.json({ status: "ok" }));
 app.all("/mcp", async (c) => {
   const token = extractBearer(c.req.header("authorization"));
   if (!token) return c.json({ error: "Missing authorization header" }, 401);
-  let userId: string;
-  try {
-    ({ userId } = await verifyToken(token));
-  } catch {
-    return c.json({ error: "Invalid token" }, 401);
-  }
+  // Accept both a `tkms_` API key (what Settings generates for MCP) and a Supabase JWT.
+  const userId = await resolveUserId(token);
+  if (!userId) return c.json({ error: "Invalid token" }, 401);
 
   const fs = new PostgresVaultFS(userId);
   const server = buildMcpServer(fs);

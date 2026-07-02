@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { hashApiKey, serviceExecute, closePool } from "@team-kms/shared";
 import { app } from "./index.js";
 
 const SUPABASE_URL = process.env.SUPABASE_URL ?? "";
@@ -37,11 +38,14 @@ describe.skipIf(!SUPABASE_URL || !SERVICE)("MCP HTTP + JWT", () => {
   });
 
   afterAll(async () => {
-    if (userId)
+    if (userId) {
+      await serviceExecute("DELETE FROM api_keys WHERE user_id = $1", [userId]);
       await fetch(`${SUPABASE_URL}/auth/v1/admin/users/${userId}`, {
         method: "DELETE",
         headers: { apikey: SERVICE, authorization: `Bearer ${SERVICE}` },
       });
+    }
+    await closePool();
   });
 
   it("health is open", async () => {
@@ -66,6 +70,22 @@ describe.skipIf(!SUPABASE_URL || !SERVICE)("MCP HTTP + JWT", () => {
     const res = await app.request("/mcp", {
       method: "POST",
       headers: mcpHeaders(`Bearer ${token}`),
+      body: JSON.stringify(initBody),
+    });
+    expect(res.status).toBe(200);
+    const json = (await res.json()) as { result?: { serverInfo?: { name?: string } } };
+    expect(json.result?.serverInfo?.name).toBe("Team KMS Wiki");
+  });
+
+  it("accepts a tkms_ API key (what Settings generates for MCP)", async () => {
+    const key = `tkms_httptest${Date.now().toString(36)}`;
+    await serviceExecute(
+      "INSERT INTO api_keys (user_id, name, key_hash, key_prefix) VALUES ($1, $2, $3, $4)",
+      [userId, "http-test", hashApiKey(key), key.slice(0, 12)],
+    );
+    const res = await app.request("/mcp", {
+      method: "POST",
+      headers: mcpHeaders(`Bearer ${key}`),
       body: JSON.stringify(initBody),
     });
     expect(res.status).toBe(200);
