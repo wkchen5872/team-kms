@@ -9,6 +9,22 @@ markdown。這是原 Python `llmwiki` converter 的**全 Node 重寫**——已�
 `opendataloader-pdf` 是 Java CLI 的薄包裝，`@opendataloader/pdf` npm 套件直接呼叫
 同一個 Java 引擎，因此轉換品質與原版一致，零損失。
 
+## 支援格式與解析路徑
+
+副檔名決定走幾段管線（判斷在 `index.ts`：`OFFICE_EXTENSIONS.has(ext) ? officeToPdf(...) : sourcePath`）：
+
+| 副檔名 | 路徑 | 說明 |
+|---|---|---|
+| `pdf` | ② opendataloader | 直接 PDF → per-page markdown |
+| `doc` `docx` `ppt` `pptx` `xls` `xlsx` | ① LibreOffice → PDF → ② opendataloader | Office/Excel **先用 LibreOffice 轉 PDF**，再交給 opendataloader 抽 markdown |
+| 其他（含 `csv`） | ✗ 不支援 | 不在 `SUPPORTED` 清單，`/extract` 回 400；CSV 由 web 端 `ContentViewer` 直接呈現 raw，不進本服務 |
+
+```
+Office/Excel ─①─ LibreOffice(soffice --convert-to pdf) ─→ PDF ─┐
+                                                                ├─②─ opendataloader ─→ per-page markdown
+PDF ────────────────────────────────────────────────────────────┘
+```
+
 ## 核心檔案
 
 ### `index.ts` — 服務入口
