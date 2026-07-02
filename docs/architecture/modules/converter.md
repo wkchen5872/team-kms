@@ -41,13 +41,16 @@ PDF ─────────────────────────�
 - 併發上限：`MAX_CONCURRENT_EXTRACTIONS`（環境變數，預設 2）。
 - 呼叫前先經 `validateSourceUrl()`（SSRF 防護）。
 - 轉換管線：下載來源 → （若為 Office 檔）LibreOffice 轉 PDF → opendataloader 解析 →
-  組裝逐頁 markdown。
-- 回傳：`{ pages: PageContent[], page_count, request_id? }`。
+  組裝逐頁 markdown + 內嵌圖 bytes。
+- 回傳：`{ pages: [{page, content, images}], page_count, warnings?, request_id? }`，
+  `images = {id, dataBase64, format}[]`。圖片 bytes 只抽取回傳，**存 asset 與 OCR 由
+  `apps/api` ingest 層負責**（converter 保持無狀態、零 LLM）。
 - 每次轉換使用獨立暫存目錄，完成後 `rm -rf` 清理。
 
-### `extract.ts` — PDF → markdown
-- `extractPages(pdfPath)`：呼叫 opendataloader 的 `convert()`（透過 Node wrapper 執行
-  Java CLI），解析其 JSON 輸出，交給 `assemblePages()` 組成逐頁 markdown。
+### `extract.ts` — PDF → markdown + 內嵌圖
+- `extractPages(pdfPath, opts?)`：呼叫 opendataloader `convert()` 時帶
+  **`imageOutput: "embedded"`**（否則預設 `external`，圖會寫進隨即被刪的暫存目錄 → 死連結），
+  讓圖以 base64 data URI 內嵌 JSON；解析後交給 `assemblePages()`。回傳 `{pages, warnings}`。
 
 ### `office.ts` — Office → PDF
 - `officeToPdf(sourcePath, tmpDir)`：以子行程呼叫 LibreOffice 二進位
@@ -58,7 +61,9 @@ PDF ─────────────────────────�
 ### `markdown.ts` — opendataloader JSON → markdown
 - `elementToMarkdown(el)`：把 opendataloader 的元素（heading/paragraph/list/image/caption）
   轉為對應的 markdown 語法。
-- `assemblePages(data)`：依 `page_number` 分組，過濾頁首/頁尾雜訊，上限 10,000 頁。
+- `assemblePages(data, opts?)`：依 `page_number` 分組，過濾頁首/頁尾雜訊，上限 10,000 頁；
+  data-URI 圖片抽成 `pages[].images`，content 內留 `![image](odl-image:<id>)` token 供 ingest 改寫；
+  另有每圖大小 / 每頁張數上限（`MAX_IMAGE_BYTES` / `MAX_IMAGES_PER_PAGE`），超過則跳過並回 `warnings`。
 
 ### `download.ts`
 - `downloadToFile(url, dest, maxBytes)`：串流下載並限制檔案大小上限，避免記憶體/磁碟被大檔撐爆。

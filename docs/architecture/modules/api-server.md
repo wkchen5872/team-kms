@@ -76,27 +76,41 @@ timestamp: 2025-07-02T00:00:00Z
   `validateSignature()`、`decodeMetadata()`。
 
 ### `converter-client.ts`
-- `ConverterClient` 介面：`extract(sourceUrl, ext) → PageContent[]`。
+- `ConverterClient` 介面：`extract(sourceUrl, ext) → PageContent[]`（`PageContent` 含
+  `images: {id, dataBase64, format}[]`——PDF 內嵌圖，見 [converter](converter.md)）。
 - `HttpConverterClient`：以 Bearer token 呼叫 `apps/converter` 的 `POST /extract`。
 
+### `ocr.ts` — 可插拔圖片 OCR（可選，跑在 ingest 層）
+- `OcrProvider` 介面 `ocrImage(bytes, mime) → {text}`，實作 `MistralProvider` / `GeminiProvider`。
+- `ocrProviderFromEnv()`：依 `OCR_PROVIDER=mistral|gemini|none` + 對應 API key 選 provider；
+  未設則回 `null`（後端維持零 LLM）。
+- `ocrImageBytes` / `ocrPageImages`：對圖片跑 OCR，**失敗回 undefined（優雅降級，不阻斷 ingest）**。
+- OCR **只在 ingest 層**執行（有 provider key）；converter 永遠不碰 LLM。
+
 ### `ingest.ts` — 檔案分流邏輯
+兩個進入點:**`ingestSource`（同步）** 供 multipart `POST /upload`；
+**`ingestAsync`（非同步）** 供 TUS `/v1/files`——只做 dedup + 建 pending 文件 + 上傳 S3,
+然後 `enqueue(docId)` 交給單執行緒 jobs 佇列(一次一份),**上傳立即返回、永不撞 converter 併發上限**,
+失敗由佇列標記 `documents.status='failed'`。text 檔(md/txt)兩者都直接寫入 ready。以下為抽取邏輯（兩者共用）:
 ```
-輸入: { kbId, filename, fileType, bytes, title?, tags?, dirPath? }
+輸入: { kbId, filename, fileType, bytes, ... }，deps 可帶 ocr?: OcrProvider|null
 
 若 fileType ∈ {md, txt}:
-  → fs.createDocument()（直接寫入，status='ready'）
-  → chunkText() → 寫入 document_chunks
-  → 回傳 { id, filename, path }
+  → fs.createDocument()（直接寫入，status='ready'）→ chunkText()
+
+否則若 fileType ∈ {png,jpg,jpeg,webp,gif}（直接上傳的圖片）:
+  → fs.createPendingDocument() → 上傳 S3（不經 converter）
+  → ocrImageBytes()（可選）→ OCR 文字
+  → fs.finalizeImageDocument(docId, kbId, ocrText)（status='ready'，OCR 文字入 content+chunks）
 
 否則（PDF/Office 等二進位）:
-  → fs.createPendingDocument()（status='pending'）
-  → 上傳至 S3：key = `${userId}/${docId}/source.${fileType}`
-  → 呼叫 converter.extract(presignedUrl, fileType)
+  → fs.createPendingDocument()（status='pending'）→ 上傳 S3
+  → converter.extract() → pages（含內嵌圖 bytes）
+  → ocrPageImages()（可選）→ 每張圖填 ocrText
   → fs.finalizeExtractedDocument()
-     - 寫入 document_pages（逐頁）
-     - 更新 documents.content / page_count / status='ready'
-     - chunkPages() → 寫入 document_chunks
-  → 回傳 { id, filename, path }
+     - 每張圖存成 asset 文件（Supabase Storage）+ 寫 document_pages.elements
+       + 改寫 markdown 圖連結 `odl-image:<id>` → `asset:<assetDocId>`
+     - 更新 documents.content / page_count / status='ready'，chunkPages() 入索引
 ```
 
 ## 依賴關係

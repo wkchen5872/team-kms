@@ -83,6 +83,12 @@ timestamp: 2025-07-02T00:00:00Z
   **同源 blob** → `<a download=原檔名>` 觸發（PDF 也會強制下載而非 inline 開啟）。
 - note/webclip 無 `source.*` 物件，改抓 `/content` 的 markdown 存成 `.md`。
 
+## 圖片 / asset 渲染
+
+- `WikiContent` 圖片解析器處理三種 src：相對檔名（比對 documents 找 asset）、`data:`/`http` 直出、
+  以及 **`asset:<docId>`**（PDF 抽出的內嵌圖，直接對該 asset 文件打 `/source-url` 取 presigned URL）。
+- 直接上傳的圖片是一般 source 文件（`png/jpg/...`），在 FilesGrid 由 `ImageViewer` 走 `/source-url` 呈現。
+
 ## 知識圖譜視覺化資料流
 
 ```
