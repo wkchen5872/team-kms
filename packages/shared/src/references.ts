@@ -33,23 +33,42 @@ const WIKI_LINK_RE = /(?<!!)\[(?:[^\]]*)\]\(([^)]+)\)/g;
 const EXT_RE = /\.(pdf|docx?|pptx?|xlsx?|csv|html?|md|txt)$/;
 const IMAGE_EXT_RE = /\.(png|jpg|jpeg|gif|webp|svg)$/i;
 
+// Extension-anchored citation token: a filename ending in a known extension,
+// with an optional trailing `, p.N`. Filenames commonly contain " - " as a
+// structural separator (e.g. "2025 - 台糖 - 陳平段.md"), so we anchor on the
+// extension instead of splitting on " - " (which truncated such names). Multiple
+// tokens in one footnote (e.g. "A.doc；B.doc") each become a separate citation.
+const CITATION_TOKEN_RE = /(.+?\.(?:pdf|docx?|pptx?|xlsx?|csv|html?|md|txt))(?:\s*,\s*p\.?\s*(\d+))?/gi;
+
 function stripExt(name: string): string {
   return name.replace(EXT_RE, "");
 }
 
-/** Extract filename and optional page from a citation like 'paper.pdf, p.3'. */
-export function parseCitationFilename(raw: string): [string, number | null] {
+/**
+ * Parse a footnote citation value into one or more (filename, page) pairs.
+ * Anchors on file extensions so " - " inside a filename is preserved and
+ * compound footnotes ("A.pdf；B.pdf") yield multiple citations. Falls back to
+ * the whole trimmed string when no known extension is present.
+ */
+export function parseCitations(raw: string): [string, number | null][] {
   let s = raw.trim().replace(/^\*+/, "").replace(/\*+$/, "");
   const linkMatch = /^\[([^\]]+)\]\([^)]*\)(.*)$/.exec(s);
   if (linkMatch) {
     s = `${linkMatch[1]}${linkMatch[2]}`;
   }
-  s = s.split(/\s+[-–—]\s+/)[0]!.trim();
-  const pageMatch = /,\s*p\.?\s*(\d+)\b/.exec(s);
-  if (pageMatch) {
-    return [s.slice(0, pageMatch.index).trim(), parseInt(pageMatch[1]!, 10)];
+  const out: [string, number | null][] = [];
+  for (const m of s.matchAll(CITATION_TOKEN_RE)) {
+    // matchAll can carry a leading separator from the previous token into the
+    // greedy-min prefix (e.g. "；B.doc"); strip it off.
+    const filename = m[1]!.replace(/^[\s；;、,]+/, "").trim();
+    if (filename) out.push([filename, m[2] ? parseInt(m[2], 10) : null]);
   }
-  return [s, null];
+  return out.length ? out : [[s.trim(), null]];
+}
+
+/** Extract the first filename + optional page from a citation. */
+export function parseCitationFilename(raw: string): [string, number | null] {
+  return parseCitations(raw)[0]!;
 }
 
 /** Extract internal wiki link paths, resolved relative to currentDir. */
@@ -131,13 +150,15 @@ export function extractReferences(
     edges.push({ targetId: target.id, type, page });
   };
 
-  // Footnote citations: [^N]: filename.pdf, p.3
+  // Footnote citations: [^N]: filename.pdf, p.3 — one footnote may cite several
+  // sources (compound), so parse each into its own edge.
   for (const match of content.matchAll(CITATION_RE)) {
-    const [filename, page] = parseCitationFilename(match[1]!);
-    const fnLower = filename.toLowerCase();
-    let target = filenameToDoc.get(fnLower);
-    if (!target) target = baseToDoc.get(stripExt(fnLower));
-    add(target, "cites", page);
+    for (const [filename, page] of parseCitations(match[1]!)) {
+      const fnLower = filename.toLowerCase();
+      let target = filenameToDoc.get(fnLower);
+      if (!target) target = baseToDoc.get(stripExt(fnLower));
+      add(target, "cites", page);
+    }
   }
 
   // Wiki cross-references: [text](path.md)

@@ -11,6 +11,7 @@ import type pg from "pg";
 import { createHash } from "node:crypto";
 import { getPool, scopedQuery, scopedQueryRow, scopedExecute, serviceQueryRow, serviceExecute } from "./db.js";
 import { chunkText, chunkPages, type Chunk } from "./chunker.js";
+import { buildLookupMaps, extractReferences, type RefDoc } from "./references.js";
 import { S3Service, s3FromConfig } from "./s3.js";
 import { loadConfig } from "./config.js";
 
@@ -663,6 +664,31 @@ export class PostgresVaultFS {
         "SET page = EXCLUDED.page, created_at = now()",
       [sourceId, targetId, kbId, refType, page],
     );
+  }
+
+  /**
+   * Recompute all citation/link edges for a KB's wiki pages with the current
+   * parser and replace existing edges. Used to backfill after a parser fix
+   * (existing pages don't re-parse until edited otherwise).
+   */
+  async rebuildReferences(kbId: string): Promise<{ pages: number; edges: number }> {
+    const docs = await this.listDocumentsWithContent(kbId);
+    const maps = buildLookupMaps(docs as unknown as RefDoc[]);
+    let pages = 0;
+    let edges = 0;
+    for (const d of docs) {
+      if (!d.path?.startsWith("/wiki/")) continue; // only wiki pages cite/link
+      const content = ((d as { content?: string }).content ?? "") as string;
+      const wikiDir = d.path.replace("/wiki/", "");
+      const eList = extractReferences(content, d.id, wikiDir, maps.filenameToDoc, maps.baseToDoc, maps.wikiPathToDoc);
+      await this.deleteReferences(d.id);
+      for (const e of eList) {
+        await this.upsertReference(d.id, e.targetId, kbId, e.type, e.page);
+        edges++;
+      }
+      pages++;
+    }
+    return { pages, edges };
   }
 
   async propagateStaleness(docId: string): Promise<void> {

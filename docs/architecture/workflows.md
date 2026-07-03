@@ -211,6 +211,11 @@ backlinks 摘要）。撰寫時呼叫 `create`/`edit`/`append`，工具會先確
 link，比對所有文件的檔名/路徑索引，重建 `document_references` 圖譜邊，並將連到被編輯
 文件的其他頁面標記為 `stale_since`（過期提示）。全程後端**零 LLM 呼叫**。
 
+> footnote 檔名解析採**副檔名錨定**（`parseCitations`）：以已知副檔名 token 為單位抽取，
+> 故檔名含 ` - `（如 `2025 - 台糖 - 陳平段.md`）不被截斷、單一 footnote 的複合來源
+> （`A.doc；B.doc`）會拆成多筆。parser 更新後可用 `POST /rebuild-references` 對整個 KB
+> 重算,回填既有頁面（既有頁面不會自動重解析）。
+
 ```mermaid
 sequenceDiagram
     participant Claude

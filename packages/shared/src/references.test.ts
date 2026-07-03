@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseCitationFilename, extractReferences, type RefDoc } from "./references.js";
+import { parseCitationFilename, parseCitations, extractReferences, type RefDoc } from "./references.js";
 
 describe("parseCitationFilename", () => {
   it("preserves a hyphenated version suffix", () => {
@@ -8,6 +8,40 @@ describe("parseCitationFilename", () => {
 
   it("keeps page suffix when wrapped in a markdown link", () => {
     expect(parseCitationFilename("[paper.pdf](https://example.com/paper), p.7")).toEqual(["paper.pdf", 7]);
+  });
+});
+
+describe("parseCitations — extension-anchored, multi-source", () => {
+  it("does not truncate a filename that uses ' - ' as a separator", () => {
+    expect(parseCitations("2025 - 台糖 - 台中市北屯區陳平段.md")).toEqual([
+      ["2025 - 台糖 - 台中市北屯區陳平段.md", null],
+    ]);
+  });
+
+  it("splits a compound footnote (全形 ；) into multiple citations", () => {
+    expect(parseCitations("A契約書.doc；B契約書.doc")).toEqual([
+      ["A契約書.doc", null],
+      ["B契約書.doc", null],
+    ]);
+  });
+
+  it("captures a page per source in a compound footnote", () => {
+    expect(parseCitations("A.pdf, p.3；B.pdf, p.5")).toEqual([
+      ["A.pdf", 3],
+      ["B.pdf", 5],
+    ]);
+  });
+
+  it("ignores trailing prose after the extension", () => {
+    expect(parseCitations("report.pdf — 詳見附錄")).toEqual([["report.pdf", null]]);
+  });
+
+  it("preserves a hyphenated version suffix (regression)", () => {
+    expect(parseCitations("2501.12948v2-2.pdf, p.5")).toEqual([["2501.12948v2-2.pdf", 5]]);
+  });
+
+  it("falls back to the whole string when there is no known extension", () => {
+    expect(parseCitations("松霖國際投資股份有限公司")).toEqual([["松霖國際投資股份有限公司", null]]);
   });
 });
 

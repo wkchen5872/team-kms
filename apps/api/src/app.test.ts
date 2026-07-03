@@ -167,6 +167,35 @@ describe.skipIf(!SUPABASE_URL || !SERVICE)("REST API", () => {
     expect((await app.request(`/v1/knowledge-bases/${kb.slug}/documents`, { headers: authHeader() })).status).toBe(404);
   });
 
+  it("rebuilds references for a KB and 404s on unknown slug", async () => {
+    const jsonAuth = { "content-type": "application/json", ...authHeader() };
+    const kb = (await (
+      await app.request("/v1/knowledge-bases", { method: "POST", headers: jsonAuth, body: JSON.stringify({ name: "Refs KB" }) })
+    ).json()) as { slug: string };
+
+    // A source note and a wiki page whose footnote cites it (with a " - " name
+    // that the old parser would have truncated).
+    const mkNote = (filename: string, path: string, content: string) =>
+      app.request(`/v1/knowledge-bases/${kb.slug}/documents/note`, {
+        method: "POST",
+        headers: jsonAuth,
+        body: JSON.stringify({ filename, path, content }),
+      });
+    await mkNote("2025 - 台糖 - 陳平段.md", "/", "來源內容");
+    await mkNote("page.md", "/wiki/", "見報告[^1]\n\n[^1]: 2025 - 台糖 - 陳平段.md");
+
+    const res = await app.request(`/v1/knowledge-bases/${kb.slug}/rebuild-references`, { method: "POST", headers: authHeader() });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { pages: number; edges: number };
+    expect(body.pages).toBeGreaterThanOrEqual(1);
+    expect(body.edges).toBeGreaterThanOrEqual(1);
+
+    const missing = await app.request(`/v1/knowledge-bases/no-such-kb-xyz/rebuild-references`, { method: "POST", headers: authHeader() });
+    expect(missing.status).toBe(404);
+
+    await app.request(`/v1/knowledge-bases/${kb.slug}`, { method: "DELETE", headers: authHeader() });
+  });
+
   it("supports folder rename/delete and rejects re-extract of a note", async () => {
     const jsonAuth = { "content-type": "application/json", ...authHeader() };
     const kb = (await (

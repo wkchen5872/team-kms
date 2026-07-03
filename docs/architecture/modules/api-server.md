@@ -34,7 +34,8 @@ timestamp: 2025-07-02T00:00:00Z
 | POST / GET / DELETE | `/v1/api-keys[/:id]` | API key 建立/列表/撤銷 |
 | GET | `/v1/me` | 使用者資訊 |
 | GET / POST | `/v1/knowledge-bases` | 知識庫列表/建立 |
-| PATCH / DELETE | `/v1/knowledge-bases/:slug` | 知識庫更名（UNIQUE→409）/ 刪除（service-role，cascade） |
+| PATCH / DELETE | `/v1/knowledge-bases/:slug` | 知識庫更名（UNIQUE→409）/ 更新 `project_prompt`（≤4000，超過 400）/ 刪除（service-role，cascade） |
+| POST | `/v1/knowledge-bases/:slug/rebuild-references` | 對整個 KB 的 wiki 頁以最新 parser 重算引用邊，回 `{pages, edges}`（parser 更新後回填既有資料用） |
 | DELETE / PATCH | `/v1/knowledge-bases/:slug/folders` | 虛擬資料夾（path 前綴）刪除（遞迴軟刪，body `{path}`）/ 改名（body `{path,name}`，UNIQUE→409） |
 | GET | `/v1/knowledge-bases/:slug/documents` | 文件列表 |
 | GET | `/v1/knowledge-bases/:slug/graph` | 知識圖譜（nodes + edges） |

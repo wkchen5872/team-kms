@@ -180,6 +180,14 @@ app.patch("/v1/knowledge-bases/:slug", async (c) => {
   }
 });
 
+app.post("/v1/knowledge-bases/:slug/rebuild-references", async (c) => {
+  const fs = c.get("fs");
+  const kb = await fs.resolveKb(c.req.param("slug"));
+  if (!kb) return c.json({ error: "Knowledge base not found" }, 404);
+  const result = await fs.rebuildReferences(kb.id as string);
+  return c.json(result);
+});
+
 app.delete("/v1/knowledge-bases/:slug", async (c) => {
   const fs = c.get("fs");
   const kb = await fs.resolveKb(c.req.param("slug"));

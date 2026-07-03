@@ -57,7 +57,8 @@ timestamp: 2025-07-02T00:00:00Z
 - 單一 chunk 上限 10,000 字元（對應 DB 欄位限制）。
 
 ### `references.ts` — 引用圖譜解析
-- `parseCitationFilename(raw)`：從 footnote（如 `[^N]: paper.pdf, p.3`）解析出檔名與頁碼。
+- `parseCitations(raw)`：從 footnote 解析出**一到多筆** `[檔名, 頁碼]`。採**副檔名錨定**——掃出所有以已知副檔名結尾的 token，故檔名內含 ` - `（如 `2025 - 台糖 - 陳平段.md`）不會被截斷，且單一 footnote 的複合來源（`A.doc；B.doc`）會拆成多筆；無副檔名時退回整串比對。
+- `parseCitationFilename(raw)`：`parseCitations(raw)[0]`，向後相容的單筆版本。
 - `parseWikiLinks(content, currentDir)`：解析內部連結（支援 `/wiki/`、`./`、`../`、相對路徑）。
 - `buildLookupMaps(docs)`：建立 `{ filenameToDoc, baseToDoc, wikiPathToDoc }` 三種索引，
   加速引用解析比對。
@@ -73,7 +74,7 @@ timestamp: 2025-07-02T00:00:00Z
 | 文件 CRUD | `getDocument()`、`getDocumentById()`、`createDocument()`、`updateDocument()`、`createPendingDocument()`、`finalizeExtractedDocument()`、`listDocuments()`、`listDocumentsWithContent()`、`archiveDocuments()` |
 | 分頁來源 | `getPages()`、`getAllPages()`（PDF/Office 等分頁來源的分段讀取） |
 | 全文搜尋 | `searchChunks(kbId, query, limit, pathFilter)`——PGroonga 全文索引查詢，見 [workflows.md](/docs/architecture/workflows.md) |
-| 引用圖譜 | `deleteReferences()`、`upsertReference()`、`getBacklinks()`、`getForwardReferences()`、`findUncitedSources()`、`findStalePages()`、`propagateStaleness()`、`listReferences()` |
+| 引用圖譜 | `deleteReferences()`、`upsertReference()`、`rebuildReferences(kbId)`（對整個 KB 的 wiki 頁重算引用邊，供 parser 更新後回填既有資料）、`getBacklinks()`、`getForwardReferences()`、`findUncitedSources()`、`findStalePages()`、`propagateStaleness()`、`listReferences()` |
 | S3 資產載入 | `loadSourceBytes()`、`loadImageBytes()`、`loadAssetBytes()` |
 
 ## 依賴關係
