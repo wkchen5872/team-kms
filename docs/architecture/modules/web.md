@@ -39,7 +39,7 @@ timestamp: 2025-07-02T00:00:00Z
 |---|---|---|
 | `kb/` | `KBDetail` | 工作頁殼：整合 sidenav + 內容區，管理 files/wiki/graph view 切換與 URL 同步、文件 CRUD（note/folder/move/rename/delete）、上傳 |
 | `kb/` | `KBSidenav` | 左側欄：來源清單、wiki file tree（巢狀展開 + active 高亮）、上傳、底部帳號選單 |
-| `kb/` | `FilesGrid` + `DocViewers` | 檔案網格（依 `file_type` 顯示 lucide icon、name/date/type 排序、搜尋、資料夾）＋各型檢視器（PDF `<embed>`、圖片、試算表、note textarea、processing/failed 狀態）。多選（hover checkbox + cmd/shift-click）驅動 `SelectionActionBar` 批次刪除 / re-extract；資料夾右鍵可改名/刪除；可萃取檔右鍵可 Re-extract（`POST /re-extract`） |
+| `kb/` | `FilesGrid` + `DocViewers` | 檔案網格（依 `file_type` 顯示 lucide icon、name/date/type 排序、搜尋、資料夾）＋各型檢視器（PDF `<embed>`、圖片、office/試算表以抽取內文就地預覽（docx/doc/pptx/ppt/xlsx/xls/csv 走 `ContentViewer`，避免非 PDF 檔塞進 PDF embed 而誤觸下載）、note textarea、processing/failed 狀態）。多選（hover checkbox + cmd/shift-click）驅動 `SelectionActionBar` 批次刪除 / re-extract；資料夾右鍵可改名/刪除；可萃取檔右鍵可 Re-extract（`POST /re-extract`） |
 | `kb/` | `GraphViewer` | `react-force-graph-2d`（`ssr:false`）力導向圖，**點節點導航**（`onNodeClick`，path 為 null 不崩） |
 | `kb/` | `WikiSelector` / `ContextMenus` / `SelectionActionBar` | KB 下拉（view all / rename / delete / create）、右鍵選單、多選操作列 |
 | `kb/` | `SidenavUserMenu` | 帳號選單：Settings 連結、Dark mode、Sign Out（`supabase.auth.signOut()`） |

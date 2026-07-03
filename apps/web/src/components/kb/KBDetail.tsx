@@ -484,7 +484,9 @@ export function KBDetail({ kbId, kbSlug, kbName, viewMode, routeFilesPath }: Pro
       setActiveView('wiki')
       navigateToView('wiki', { searchParams: sp })
     } else {
-      // From wiki/graph — switch to files
+      // From wiki/graph — switch to files. Clear any doc left open from a
+      // previous visit so "所有檔案" always lands on the grid (not a stale doc).
+      setActiveSourceDocId(null)
       setActiveView('files')
       navigateToView('files')
     }

@@ -653,11 +653,11 @@ export function FilesGrid({
             <ProcessingViewer title={activeDoc.title || activeDoc.filename} />
           ) : activeDoc.status === 'failed' ? (
             <FailedViewer title={activeDoc.title || activeDoc.filename} errorMessage={activeDoc.error_message} />
-          ) : ['pdf', 'pptx', 'ppt', 'docx', 'doc'].includes(activeDoc.file_type) ? (
+          ) : activeDoc.file_type === 'pdf' ? (
             <PdfDocViewer documentId={activeDoc.id} title={activeDoc.title || activeDoc.filename} initialPage={docInitialPage} hideToolbar />
           ) : ['png', 'jpg', 'jpeg', 'webp', 'gif', 'svg'].includes(activeDoc.file_type) ? (
             <ImageViewer documentId={activeDoc.id} title={activeDoc.title || activeDoc.filename} />
-          ) : ['xlsx', 'xls', 'csv'].includes(activeDoc.file_type) ? (
+          ) : ['docx', 'doc', 'pptx', 'ppt', 'xlsx', 'xls', 'csv'].includes(activeDoc.file_type) ? (
             <ContentViewer documentId={activeDoc.id} title={activeDoc.title || activeDoc.filename} fileType={activeDoc.file_type} />
           ) : (
             <UnsupportedViewer title={activeDoc.title || activeDoc.filename} />
