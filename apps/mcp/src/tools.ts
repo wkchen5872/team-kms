@@ -40,16 +40,33 @@ const GUIDE_TEXT = loadGuide();
 
 const TEXT = (s: string) => s;
 
-export async function guide(fs: PostgresVaultFS): Promise<string> {
+function kbLine(kb: KnowledgeBaseRow): string {
+  const hasConventions = typeof kb.project_prompt === "string" && kb.project_prompt.trim().length > 0;
+  return `- **${kb.name}** (\`${kb.slug}\`)` + (hasConventions ? " — has project conventions (call `guide` with this slug)" : "");
+}
+
+export async function guide(fs: PostgresVaultFS, slug?: string): Promise<string> {
   const kbs = await fs.listKnowledgeBases();
-  if (!kbs.length) return GUIDE_TEXT + "No knowledge bases yet. Use `create_knowledge_base`.";
-  return GUIDE_TEXT + kbs.map((kb) => `- **${kb.name}** (\`${kb.slug}\`)`).join("\n");
+  const list = kbs.length
+    ? kbs.map(kbLine).join("\n")
+    : "No knowledge bases yet. Use `create_knowledge_base`.";
+
+  // When a slug is given and that KB has a non-empty project prompt, append it as
+  // an authoring-preference overlay on top of the global guide.
+  if (slug && kbs.length) {
+    const kb = kbs.find((k) => k.slug === slug || k.id === slug);
+    const prompt = typeof kb?.project_prompt === "string" ? kb.project_prompt.trim() : "";
+    if (kb && prompt) {
+      return `${GUIDE_TEXT}${list}\n\n## Project conventions — ${kb.name}\n\n${prompt}`;
+    }
+  }
+  return GUIDE_TEXT + list;
 }
 
 export async function listKnowledgeBases(fs: PostgresVaultFS): Promise<string> {
   const kbs = await fs.listKnowledgeBases();
   if (!kbs.length) return "No knowledge bases yet. Use `create_knowledge_base`.";
-  return kbs.map((kb) => `- **${kb.name}** (\`${kb.slug}\`)`).join("\n");
+  return kbs.map(kbLine).join("\n");
 }
 
 export async function createKnowledgeBase(

@@ -2,7 +2,8 @@
 
 import * as React from 'react'
 import { useRouter } from 'next/navigation'
-import { ChevronsUpDown, Plus, Pencil, Trash2, Library } from 'lucide-react'
+import { ChevronsUpDown, Plus, Pencil, Trash2, Library, SlidersHorizontal } from 'lucide-react'
+import { toast } from 'sonner'
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover'
 import { Command, CommandInput, CommandList, CommandItem, CommandEmpty, CommandGroup, CommandSeparator } from '@/components/ui/command'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
@@ -13,16 +14,21 @@ export function WikiSelector({ kbName, kbId }: { kbName: string; kbId: string })
   const knowledgeBases = useKBStore((s) => s.knowledgeBases)
   const createKB = useKBStore((s) => s.createKB)
   const renameKB = useKBStore((s) => s.renameKB)
+  const updateKBPrompt = useKBStore((s) => s.updateKBPrompt)
   const deleteKB = useKBStore((s) => s.deleteKB)
+  const PROMPT_MAX = 4000
   const [open, setOpen] = React.useState(false)
   const [search, setSearch] = React.useState('')
   const [createDialogOpen, setCreateDialogOpen] = React.useState(false)
   const [renameDialogOpen, setRenameDialogOpen] = React.useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false)
+  const [promptDialogOpen, setPromptDialogOpen] = React.useState(false)
   const [newName, setNewName] = React.useState('')
   const [renameName, setRenameName] = React.useState('')
+  const [promptText, setPromptText] = React.useState('')
   const [creating, setCreating] = React.useState(false)
   const [renaming, setRenaming] = React.useState(false)
+  const [savingPrompt, setSavingPrompt] = React.useState(false)
   const [deleting, setDeleting] = React.useState(false)
 
   const handleCreate = async () => {
@@ -52,6 +58,20 @@ export function WikiSelector({ kbName, kbId }: { kbName: string; kbId: string })
       // error handled by store
     } finally {
       setRenaming(false)
+    }
+  }
+
+  const handleSavePrompt = async () => {
+    if (savingPrompt || promptText.length > PROMPT_MAX) return
+    setSavingPrompt(true)
+    try {
+      await updateKBPrompt(kbId, promptText)
+      setPromptDialogOpen(false)
+      toast.success('已儲存整理偏好')
+    } catch {
+      toast.error('儲存失敗')
+    } finally {
+      setSavingPrompt(false)
     }
   }
 
@@ -127,6 +147,17 @@ export function WikiSelector({ kbName, kbId }: { kbName: string; kbId: string })
                     <CommandItem
                       onSelect={() => {
                         setOpen(false)
+                        const kb = knowledgeBases.find((k) => k.id === kbId)
+                        setPromptText(kb?.project_prompt ?? '')
+                        setPromptDialogOpen(true)
+                      }}
+                    >
+                      <SlidersHorizontal className="size-3.5 mr-2" />
+                      整理偏好 Conventions
+                    </CommandItem>
+                    <CommandItem
+                      onSelect={() => {
+                        setOpen(false)
                         setDeleteDialogOpen(true)
                       }}
                       className="text-destructive"
@@ -196,6 +227,43 @@ export function WikiSelector({ kbName, kbId }: { kbName: string; kbId: string })
               className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50 cursor-pointer"
             >
               {renaming ? 'Renaming...' : 'Rename'}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={promptDialogOpen} onOpenChange={setPromptDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>整理偏好 · Project Conventions</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            這段偏好會在 Claude 透過 MCP 整理本知識庫的 wiki 時，疊加到全域指引之上（例如：entities 附 timeline、財務數據多用圖表）。團隊共用，不影響檔案抽取。
+          </p>
+          <textarea
+            value={promptText}
+            onChange={(e) => setPromptText(e.target.value)}
+            placeholder="例如：本知識庫偏財務分析，concepts 頁請盡量以圖表整理數據；entities 頁需附財務與時間軸摘要。"
+            rows={8}
+            className="w-full resize-y rounded-lg border border-input bg-background px-3 py-2 text-sm"
+            autoFocus
+          />
+          <div className={`text-right text-xs ${promptText.length > PROMPT_MAX ? 'text-destructive' : 'text-muted-foreground'}`}>
+            {promptText.length} / {PROMPT_MAX}
+          </div>
+          <DialogFooter>
+            <button
+              onClick={() => setPromptDialogOpen(false)}
+              className="rounded-lg border border-input px-4 py-2 text-sm font-medium hover:bg-accent cursor-pointer"
+            >
+              取消
+            </button>
+            <button
+              onClick={handleSavePrompt}
+              disabled={savingPrompt || promptText.length > PROMPT_MAX}
+              className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50 cursor-pointer"
+            >
+              {savingPrompt ? '儲存中…' : '儲存'}
             </button>
           </DialogFooter>
         </DialogContent>

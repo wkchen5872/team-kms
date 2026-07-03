@@ -16,7 +16,8 @@ export function buildMcpServer(fs: PostgresVaultFS): McpServer {
         "Sources live at `/` (read-only); wiki pages you author live at `/wiki/`. " +
         "Call the `guide` tool first — it explains the wiki structure (overview / concepts / entities / log), " +
         "the required frontmatter, the mandatory visual element per page, citation rules, and the " +
-        "ingest / answer / lint workflows.",
+        "ingest / answer / lint workflows. Before working on a specific knowledge base, call `guide` with " +
+        "its `knowledge_base` slug — some knowledge bases define their own project conventions that overlay the global guide.",
     },
   );
 
@@ -32,9 +33,12 @@ export function buildMcpServer(fs: PostgresVaultFS): McpServer {
       description:
         "Get started with the wiki. Call this first to learn how the knowledge vault works — " +
         "the wiki structure (overview / concepts / entities / log), writing standards, citation " +
-        "rules, the reference graph, and the core workflows — and to see your available knowledge bases.",
+        "rules, the reference graph, and the core workflows — and to see your available knowledge bases. " +
+        "Pass a `knowledge_base` slug to also get that KB's project conventions (an authoring-preference " +
+        "overlay) appended when it has any.",
+      inputSchema: { knowledge_base: z.string().optional() },
     },
-    async () => text(await guide(fs)),
+    async ({ knowledge_base }) => text(await guide(fs, knowledge_base)),
   );
 
   server.registerTool(

@@ -13,6 +13,35 @@ timestamp: 2025-07-02T00:00:00Z
 系統有兩個最核心的業務流程：**檔案上傳→解析→索引**，以及 **Claude 透過 MCP 搜尋/讀取/
 撰寫**。兩者共用同一組資料表（見下方 schema），互不呼叫，靠共用資料層維持一致性。
 
+## 全景：素材抽取 vs wiki 撰寫（誰在哪裡做什麼）
+
+一個常見誤解是「entities / concepts 是在 ingest 時整理出來的」。**不是**。ingest
+只把上傳檔案抽成原始素材（文字 / 圖片 / OCR），存進 `documents.content`（放在 `/`）；
+真正把素材整理成 `overview / concepts / entities / log` 的，是**使用者電腦上的 Claude**
+透過 MCP 工具讀素材、寫 wiki。後端全程不呼叫任何 LLM——理解與寫作都在 Claude 端。
+
+```
+   ┌─────────────┐   上傳檔案      ┌──────────────────┐
+   │  Web 上傳    │ ─────────────▶ │  ingest pipeline │  只做：抽文字/圖片/OCR
+   └─────────────┘                └──────────────────┘  → documents.content
+                                                          （原始素材，kind='raw'，放在 `/`）
+                                          │
+                                          │ 素材就緒（status=ready）
+                                          ▼
+   ┌──────────────────────────────────────────────────────────┐
+   │  你電腦上的 Claude  ──(MCP)──▶  Team KMS Wiki server        │
+   │                                                            │
+   │  1. 先呼叫 guide  ◀── 讀 prompts/guide.md（全域「預設 prompt」）│
+   │  2. search / read 原始素材                                  │
+   │  3. create/edit/append 產生 /wiki/{overview,concepts,       │
+   │     entities,log}  ← 「實體/概念」在這裡才被整理出來（kind='wiki'）│
+   └──────────────────────────────────────────────────────────┘
+```
+
+> 這個分界決定了「整理偏好」類設定該放哪：影響 **wiki 撰寫偏好**（例如 entities 要不要
+> 附 timeline、財務類 concepts 是否多用圖表）的設定，屬於 guide/prompt 這一側，與 ingest
+> 無關；ingest 只負責把 bytes 變成可讀素材。
+
 ## 資料庫 Schema 摘要
 
 Migration 順序（`supabase/migrations/`）：

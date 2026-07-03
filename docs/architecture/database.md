@@ -77,6 +77,7 @@ timestamp: 2025-07-02T00:00:00Z
 | `user_id` | UUID FK→users | CASCADE |
 | `name` / `slug` | TEXT | `UNIQUE(user_id, slug)`、`UNIQUE(user_id, name)` |
 | `description` | TEXT | |
+| `project_prompt` | TEXT | 每 KB 的 wiki 整理偏好（team 共用）；MCP `guide(knowledge_base=slug)` 疊加到全域指引之上，只影響撰寫、不碰 ingest |
 
 - **Trigger**：INSERT 前 `set_knowledge_base_slug()` → 空 slug 時以 `generate_slug()`
   產生去重 slug（同使用者內唯一）。

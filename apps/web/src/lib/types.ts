@@ -2,6 +2,7 @@ export interface KnowledgeBase {
   id: string;
   name: string;
   slug: string;
+  project_prompt?: string | null;
   created_at?: string;
 }
 

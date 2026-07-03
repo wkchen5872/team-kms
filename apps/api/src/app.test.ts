@@ -102,6 +102,34 @@ describe.skipIf(!SUPABASE_URL || !SERVICE)("REST API", () => {
     expect(ren.status).toBe(200);
     expect(((await ren.json()) as { name: string }).name).toBe("CRUD KB Renamed");
 
+    // set project_prompt → echoed back and surfaced in the KB list
+    const setPrompt = await app.request(`/v1/knowledge-bases/${kb.slug}`, {
+      method: "PATCH",
+      headers: jsonAuth,
+      body: JSON.stringify({ project_prompt: "Prefer charts for financial data." }),
+    });
+    expect(setPrompt.status).toBe(200);
+    expect(((await setPrompt.json()) as { project_prompt: string }).project_prompt).toBe("Prefer charts for financial data.");
+    const listed = (await (await app.request("/v1/knowledge-bases", { headers: authHeader() })).json()) as { slug: string; project_prompt: string | null }[];
+    expect(listed.find((k) => k.slug === kb.slug)?.project_prompt).toBe("Prefer charts for financial data.");
+
+    // over-long project_prompt → 400
+    const tooLong = await app.request(`/v1/knowledge-bases/${kb.slug}`, {
+      method: "PATCH",
+      headers: jsonAuth,
+      body: JSON.stringify({ project_prompt: "x".repeat(4001) }),
+    });
+    expect(tooLong.status).toBe(400);
+
+    // blank project_prompt clears it (stored as null)
+    const clearPrompt = await app.request(`/v1/knowledge-bases/${kb.slug}`, {
+      method: "PATCH",
+      headers: jsonAuth,
+      body: JSON.stringify({ project_prompt: "  " }),
+    });
+    expect(clearPrompt.status).toBe(200);
+    expect(((await clearPrompt.json()) as { project_prompt: string | null }).project_prompt).toBeNull();
+
     // create a note with searchable content (returns a full document row)
     const noteRes = await app.request(`/v1/knowledge-bases/${kb.slug}/documents/note`, {
       method: "POST",

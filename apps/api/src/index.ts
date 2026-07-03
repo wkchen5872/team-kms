@@ -155,14 +155,24 @@ app.get("/v1/knowledge-bases/:slug/graph", async (c) => {
 });
 
 // ── KB rename / delete (feature 8) ────────────────────────────────
+const PROJECT_PROMPT_MAX = 4000;
+
 app.patch("/v1/knowledge-bases/:slug", async (c) => {
   const fs = c.get("fs");
   const kb = await fs.resolveKb(c.req.param("slug"));
   if (!kb) return c.json({ error: "Knowledge base not found" }, 404);
-  const body = (await c.req.json().catch(() => ({}))) as { name?: string };
-  if (!body.name?.trim()) return c.json({ error: "name is required" }, 400);
+  const body = (await c.req.json().catch(() => ({}))) as { name?: string; project_prompt?: string | null };
+  const hasName = typeof body.name === "string";
+  const hasPrompt = "project_prompt" in body;
+  if (!hasName && !hasPrompt) return c.json({ error: "name or project_prompt is required" }, 400);
+  if (hasName && !body.name!.trim()) return c.json({ error: "name is required" }, 400);
+  if (hasPrompt && typeof body.project_prompt === "string" && body.project_prompt.length > PROJECT_PROMPT_MAX) {
+    return c.json({ error: `project_prompt must be ${PROJECT_PROMPT_MAX} characters or fewer` }, 400);
+  }
   try {
-    const updated = await fs.renameKnowledgeBase(kb.id as string, body.name.trim());
+    let updated = kb;
+    if (hasName) updated = (await fs.renameKnowledgeBase(kb.id as string, body.name!.trim())) ?? updated;
+    if (hasPrompt) updated = (await fs.updateKnowledgeBasePrompt(kb.id as string, body.project_prompt ?? null)) ?? updated;
     return c.json(updated);
   } catch (err) {
     if (isUnique(err)) return c.json({ error: "A knowledge base with that name already exists" }, 409);

@@ -34,7 +34,7 @@ timestamp: 2025-07-02T00:00:00Z
 
 | 工具 | 用途 |
 |---|---|
-| `guide` | 回傳 `prompts/guide.md` 全文——wiki 結構、寫作標準、核心工作流程 |
+| `guide` | 回傳 `prompts/guide.md` 全文——wiki 結構、寫作標準、核心工作流程。可選 `knowledge_base` slug：帶入且該 KB 設有 project prompt 時，於全域指引後附上「## Project conventions」疊加區塊；有慣例的 KB 也會在清單中被標記 |
 | `list_knowledge_bases` | 列出使用者可存取的知識庫 |
 | `create_knowledge_base` | 建立新知識庫 |
 | `search` | 三種模式：list（檔案/資料夾瀏覽）、search（關鍵字 + chunk 級全文搜尋，含頁碼）、references（uncited/stale 來源、forward refs、backlinks 圖譜查詢） |

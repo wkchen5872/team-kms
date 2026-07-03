@@ -11,6 +11,7 @@ type KBState = {
   createKB: (name: string, description?: string) => Promise<KnowledgeBase>;
   deleteKB: (id: string) => Promise<void>;
   renameKB: (id: string, name: string) => Promise<void>;
+  updateKBPrompt: (id: string, projectPrompt: string) => Promise<void>;
 };
 
 function getToken(): string {
@@ -56,6 +57,14 @@ export const useKBStore = create<KBState>((set, get) => ({
     const updated = await apiFetch<KnowledgeBase>(`/v1/knowledge-bases/${id}`, getToken(), {
       method: "PATCH",
       body: JSON.stringify({ name }),
+    });
+    set({ knowledgeBases: get().knowledgeBases.map((kb) => (kb.id === id ? updated : kb)) });
+  },
+
+  updateKBPrompt: async (id, projectPrompt) => {
+    const updated = await apiFetch<KnowledgeBase>(`/v1/knowledge-bases/${id}`, getToken(), {
+      method: "PATCH",
+      body: JSON.stringify({ project_prompt: projectPrompt }),
     });
     set({ knowledgeBases: get().knowledgeBases.map((kb) => (kb.id === id ? updated : kb)) });
   },

@@ -40,6 +40,7 @@ export interface KnowledgeBaseRow {
   id: string;
   name: string;
   slug: string;
+  project_prompt?: string | null;
   [k: string]: unknown;
 }
 
@@ -129,7 +130,7 @@ export class PostgresVaultFS {
   async resolveKb(slugOrId: string): Promise<KnowledgeBaseRow | null> {
     return scopedQueryRow<KnowledgeBaseRow>(
       this.userId,
-      "SELECT id, name, slug FROM knowledge_bases WHERE (slug = $1 OR id::text = $1) AND user_id = $2",
+      "SELECT id, name, slug, project_prompt FROM knowledge_bases WHERE (slug = $1 OR id::text = $1) AND user_id = $2",
       [slugOrId, this.userId],
     );
   }
@@ -137,7 +138,7 @@ export class PostgresVaultFS {
   async listKnowledgeBases(): Promise<KnowledgeBaseRow[]> {
     return scopedQuery<KnowledgeBaseRow>(
       this.userId,
-      "SELECT id, name, slug, created_at FROM knowledge_bases WHERE user_id = $1 ORDER BY created_at DESC",
+      "SELECT id, name, slug, project_prompt, created_at FROM knowledge_bases WHERE user_id = $1 ORDER BY created_at DESC",
       [this.userId],
     );
   }
@@ -148,6 +149,17 @@ export class PostgresVaultFS {
       "UPDATE knowledge_bases SET name = $1, updated_at = now() WHERE id = $2 AND user_id = $3 " +
         "RETURNING id, name, slug",
       [name, id, this.userId],
+    );
+  }
+
+  async updateKnowledgeBasePrompt(id: string, prompt: string | null): Promise<KnowledgeBaseRow | null> {
+    // knowledge_bases has only a SELECT RLS policy → service-role, scoped by user_id.
+    // Blank / whitespace-only clears the overlay (store NULL).
+    const value = prompt && prompt.trim() ? prompt : null;
+    return serviceQueryRow<KnowledgeBaseRow>(
+      "UPDATE knowledge_bases SET project_prompt = $1, updated_at = now() WHERE id = $2 AND user_id = $3 " +
+        "RETURNING id, name, slug, project_prompt",
+      [value, id, this.userId],
     );
   }
 
