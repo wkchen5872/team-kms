@@ -120,6 +120,11 @@ Link between wiki pages using standard markdown links to other wiki paths
 
 ## Core Workflows
 
+**Before organizing or writing in any knowledge base**, first call
+`get_project_instruction(knowledge_base="<slug>")` to load that KB's project conventions —
+its authoring preferences override this global guide. The KB list above marks which knowledge
+bases have conventions.
+
 ### Ingest a New Source
 1. Read it: `read(path="source.pdf", pages="1-10")`
 2. Identify key takeaways

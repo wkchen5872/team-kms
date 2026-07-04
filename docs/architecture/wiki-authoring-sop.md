@@ -71,7 +71,7 @@ Desktop 不好中途換設定時，**單一實用預設就用「Opus 4.8 / mediu
 2. 設 **Opus 4.8 / medium / thinking off**(要先規劃就臨時開 thinking，規劃完關掉)。
 3. 貼開場白：
 
-> 用 `team-kms:guide` 帶 `knowledge_base="<slug>"` 讀慣例，並照它整理這個 KB 的 wiki。
+> 先用 `team-kms:guide` 了解 wiki 結構與工作流程，再用 `team-kms:get_project_instruction` 帶 `knowledge_base="<slug>"` 讀該 KB 的慣例，並照它整理這個 KB 的 wiki。
 > 注意：citation parser 已修好——含空格與 ` - ` 的檔名(如 `2025 - 台糖 - 陳平段.md`)會照原樣正確追蹤，
 > 全形 `；` 複合來源也會自動拆。**不要**把 footnote 檔名的空格改成底線(真實檔名就是有空格，改了反而斷)。
 > 判斷「未引用」請用 `search(mode="references", query="uncited")` 查引用圖，不要用肉眼看檔名。

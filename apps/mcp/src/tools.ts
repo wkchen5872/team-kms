@@ -42,25 +42,27 @@ const TEXT = (s: string) => s;
 
 function kbLine(kb: KnowledgeBaseRow): string {
   const hasConventions = typeof kb.project_prompt === "string" && kb.project_prompt.trim().length > 0;
-  return `- **${kb.name}** (\`${kb.slug}\`)` + (hasConventions ? " — has project conventions (call `guide` with this slug)" : "");
+  return `- **${kb.name}** (\`${kb.slug}\`)` + (hasConventions ? " — has project conventions (call `get_project_instruction` with this slug)" : "");
 }
 
-export async function guide(fs: PostgresVaultFS, slug?: string): Promise<string> {
+export async function guide(fs: PostgresVaultFS): Promise<string> {
   const kbs = await fs.listKnowledgeBases();
   const list = kbs.length
     ? kbs.map(kbLine).join("\n")
     : "No knowledge bases yet. Use `create_knowledge_base`.";
-
-  // When a slug is given and that KB has a non-empty project prompt, append it as
-  // an authoring-preference overlay on top of the global guide.
-  if (slug && kbs.length) {
-    const kb = kbs.find((k) => k.slug === slug || k.id === slug);
-    const prompt = typeof kb?.project_prompt === "string" ? kb.project_prompt.trim() : "";
-    if (kb && prompt) {
-      return `${GUIDE_TEXT}${list}\n\n## Project conventions — ${kb.name}\n\n${prompt}`;
-    }
-  }
   return GUIDE_TEXT + list;
+}
+
+/** On-demand fetch of a single KB's authoring conventions — only the project prompt,
+ *  never the global guide or the KB list. Delivered when Claude targets a KB, so it
+ *  loads the one convention it needs without re-sending the methodology. */
+export async function getProjectInstruction(fs: PostgresVaultFS, slug: string): Promise<string> {
+  const kbs = await fs.listKnowledgeBases();
+  const kb = kbs.find((k) => k.slug === slug || k.id === slug);
+  if (!kb) return `Knowledge base '${slug}' not found. Call \`list_knowledge_bases\` to see valid slugs.`;
+  const prompt = typeof kb.project_prompt === "string" ? kb.project_prompt.trim() : "";
+  if (!prompt) return `**${kb.name}** has no project conventions. Follow the global guide.`;
+  return `## Project conventions — ${kb.name}\n\n${prompt}`;
 }
 
 export async function listKnowledgeBases(fs: PostgresVaultFS): Promise<string> {

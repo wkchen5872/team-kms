@@ -34,8 +34,9 @@ timestamp: 2025-07-02T00:00:00Z
 
 | 工具 | 用途 |
 |---|---|
-| `guide` | 回傳 `prompts/guide.md` 全文——wiki 結構、寫作標準、核心工作流程。可選 `knowledge_base` slug：帶入且該 KB 設有 project prompt 時，於全域指引後附上「## Project conventions」疊加區塊；有慣例的 KB 也會在清單中被標記 |
-| `list_knowledge_bases` | 列出使用者可存取的知識庫 |
+| `guide` | 回傳 `prompts/guide.md` 全文——wiki 結構、寫作標準、核心工作流程——並附上知識庫清單。清單會標記哪些 KB 設有專屬 project prompt。不含任何 KB 的慣例內文（改由 `get_project_instruction` 按需取得） |
+| `get_project_instruction` | 傳入 `knowledge_base` slug，只回傳該 KB 的 project prompt（授權慣例），不含全域指引或清單。Claude 應於開始整理某 KB 前呼叫，載入該庫慣例。無慣例回明確訊息、slug 找不到回 not found |
+| `list_knowledge_bases` | 列出使用者可存取的知識庫；同樣標記哪些 KB 有專屬慣例 |
 | `create_knowledge_base` | 建立新知識庫 |
 | `search` | 三種模式：list（檔案/資料夾瀏覽）、search（關鍵字 + chunk 級全文搜尋，含頁碼）、references（uncited/stale 來源、forward refs、backlinks 圖譜查詢） |
 | `read` | 讀單一檔案或 glob；分頁來源（PDF/Office）支援 page range；wiki 頁附 backlinks 摘要；`include_images=true` 時從 `document_pages.elements` 載 asset bytes、以 base64 ImageContent 回給 Claude（上限 12 張，比照原版），供視覺判讀圖表/流程圖 |

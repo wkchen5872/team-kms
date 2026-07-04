@@ -112,30 +112,39 @@ describe.skipIf(!process.env.DATABASE_URL)("MCP tools over the protocol", () => 
     expect(await call("delete", { knowledge_base: "mcp-kb", path: "/wiki/concepts/attention.md" })).toContain("Deleted");
   });
 
-  it("guide overlays the KB project prompt; list marks it; clearing removes overlay", async () => {
+  it("get_project_instruction returns only the KB's convention on demand; guide never overlays it", async () => {
     const fs = new PostgresVaultFS(userId);
     const kb = (await fs.resolveKb("mcp-kb"))!;
     const CONVENTION = "Always add a financial timeline table to entity pages.";
 
-    // No prompt yet → guide(slug) equals the global guide, no overlay section.
-    expect(await call("guide", { knowledge_base: "mcp-kb" })).not.toContain("Project conventions");
+    // No prompt yet → clear "no conventions" message.
+    const before = await call("get_project_instruction", { knowledge_base: "mcp-kb" });
+    expect(before.toLowerCase()).toContain("no project");
+    expect(before).not.toContain(CONVENTION);
+
+    // Unknown slug → clear "not found" message.
+    expect((await call("get_project_instruction", { knowledge_base: "nope" })).toLowerCase()).toContain("not found");
 
     await fs.updateKnowledgeBasePrompt(kb.id, CONVENTION);
 
-    const withOverlay = await call("guide", { knowledge_base: "mcp-kb" });
-    expect(withOverlay).toContain("Project conventions");
-    expect(withOverlay).toContain(CONVENTION);
+    // With a prompt → returns ONLY the convention, no global methodology, no KB list.
+    const instr = await call("get_project_instruction", { knowledge_base: "mcp-kb" });
+    expect(instr).toContain(CONVENTION);
+    expect(instr).not.toContain("Team KMS Wiki"); // no methodology
+    expect(instr).not.toContain("Wiki Structure"); // no methodology
 
-    // Without a slug: no overlay body, but the list marks the KB as having conventions.
+    // guide() returns methodology + list, and NEVER the convention body.
     const global = await call("guide");
+    expect(global).toContain("Team KMS Wiki");
     expect(global).not.toContain(CONVENTION);
+    // The list still signals which KBs have their own conventions.
     expect(global).toContain("has project conventions");
     expect(await call("list_knowledge_bases")).toContain("has project conventions");
 
-    // Clearing with blank input stores NULL → overlay disappears.
+    // Clearing with blank input stores NULL → back to "no conventions".
     await fs.updateKnowledgeBasePrompt(kb.id, "   ");
     expect((await fs.resolveKb("mcp-kb"))!.project_prompt).toBeNull();
-    expect(await call("guide", { knowledge_base: "mcp-kb" })).not.toContain("Project conventions");
+    expect((await call("get_project_instruction", { knowledge_base: "mcp-kb" })).toLowerCase()).toContain("no project");
   });
 
   it("read(include_images) returns image blocks; default returns text only", async () => {
