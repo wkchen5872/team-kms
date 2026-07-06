@@ -1,3 +1,11 @@
+---
+type: Architecture
+title: Team KMS 技術架構規格書 (Technical Architecture Specification)
+description: 已擱置的舊架構（multimodal local/self-hosted/Cloudflare Worker），保留作歷史參考。
+tags: [architecture, deprecated, historical]
+timestamp: 2026-06-30T00:00:00Z
+---
+
 # Team KMS 技術架構規格書 (Technical Architecture Specification)
 
 > ⚠️ **本文件已擱置** — 該文件描述的是舊架構（multimodal deployment 支援 local/self-hosted/Cloudflare Worker）。

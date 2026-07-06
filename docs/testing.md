@@ -1,3 +1,11 @@
+---
+type: Playbook
+title: 測試指南 (Testing Guide)
+description: 自動化測試套件、手動端對端、連接 Claude over MCP 與疑難排解。
+tags: [testing, sop, mcp]
+timestamp: 2026-06-30T00:00:00Z
+---
+
 # 測試指南 (Testing Guide)
 
 兩種測法：**(A) 自動化測試套件**（最快證明整套能跑），**(B) 手動端到端**（親眼看 Claude 經 MCP 寫 wiki）。

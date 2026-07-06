@@ -1,3 +1,11 @@
+---
+type: Reference
+title: Team KMS 開發路線圖 (Development Roadmap)
+description: 給開發人員的執行清單，依「由核心往外」排列，每個 Task 列目標、輸出物與依賴。
+tags: [roadmap, planning]
+timestamp: 2026-06-30T00:00:00Z
+---
+
 # Team KMS 開發路線圖 (Development Roadmap)
 
 > **版本**：v0.1
