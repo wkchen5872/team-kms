@@ -6,6 +6,8 @@ tags: [meta, conventions, okf]
 timestamp: 2025-07-02T00:00:00Z
 ---
 
+<!-- Managed by wk-agent-ops · do not edit here — re-running install.sh overwrites this file. -->
+
 # OKF v0.1 — 本專案文件規範
 
 Full spec: <https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md>
