@@ -33,7 +33,7 @@
 ## 5. Cloud Run deployment
 
 - [ ] 5.1 Set up Artifact Registry; build + push `web`, `api`, `converter` images
-- [ ] 5.2 Deploy `converter`: `--memory 2Gi --min-instances 1 --concurrency 1-2 --ingress internal`, env incl. `CONVERTER_SECRET`
+- [x] 5.2 Deploy `converter`: `--memory 2Gi --min-instances 1 --concurrency 1-2 --ingress internal`, env incl. `CONVERTER_SECRET`
 - [ ] 5.3 Deploy `api`: `--session-affinity`, env `CONVERTER_URL` = converter internal URL, hosted Supabase `DATABASE_URL`/`SUPABASE_*`/`S3_*`, `CONVERTER_SECRET`
 - [ ] 5.4 Deploy `web`: build-arg public URLs (`NEXT_PUBLIC_API_URL` = api's URL, `NEXT_PUBLIC_SUPABASE_URL`/anon key), `next start`
 - [ ] 5.5 Record the three service URLs; capture deploy steps as a script / notes (not a compose file)

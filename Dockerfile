@@ -1,6 +1,7 @@
 # Base image for the pure-Node services (api, mcp, web).
 # The converter has its own Dockerfile (it needs a JVM + LibreOffice).
 FROM node:22-slim
+ENV CI=true
 RUN corepack enable
 WORKDIR /app
 COPY . .

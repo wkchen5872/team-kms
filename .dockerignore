@@ -1,0 +1,27 @@
+# Build artifacts & deps — regenerated inside the image by `pnpm install`/build.
+node_modules
+**/node_modules
+dist
+**/dist
+.next
+**/.next
+*.tsbuildinfo
+coverage
+
+# VCS / local
+.git
+.gitignore
+*.log
+.DS_Store
+
+# Secrets & local config — MUST NOT be baked into images (runtime env comes from
+# Cloud Run --set-env-vars; web NEXT_PUBLIC_* come from --build-arg).
+.env
+.env.*
+**/.env
+**/.env.*
+.gcloud
+
+# Scratch / tooling not needed at build
+openspec
+docs
