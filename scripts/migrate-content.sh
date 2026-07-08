@@ -67,10 +67,26 @@ if [[ "$DRY_RUN" == "1" ]]; then
   exit 0
 fi
 
-# ── Ensure the shared owner row exists (FK target), then restore ─────────────
+# ── Ensure the shared owner row exists (FK target) ───────────────────────────
 psql "$REMOTE_DB_URL" -v ON_ERROR_STOP=1 -c \
   "insert into users(id,email) values ('$SHARED_UUID','$SHARED_EMAIL') on conflict (id) do nothing;"
-psql "$REMOTE_DB_URL" -v ON_ERROR_STOP=1 < "$DUMP"
+
+# ── Restore with USER triggers OFF ───────────────────────────────────────────
+# pg_dump sets search_path='' for safety, which breaks BEFORE-INSERT triggers
+# that reference unqualified tables (e.g. set_document_number). We also want the
+# EXACT dumped values, not trigger-regenerated ones. Disable user triggers for
+# the load, TRUNCATE first so a re-run after a partial failure is clean, restore,
+# then re-enable. If the load errors mid-way triggers stay disabled — just re-run
+# (it re-disables, truncates, reloads, re-enables).
+# Schema-qualify everything: pg_dump sets search_path='' mid-stream, so the
+# post-dump ENABLE statements must use public.<table> or they won't resolve.
+TABLES_CSV=""; for t in "${TABLES[@]}"; do TABLES_CSV+="${TABLES_CSV:+,}public.$t"; done
+{
+  for t in "${TABLES[@]}"; do echo "ALTER TABLE public.$t DISABLE TRIGGER USER;"; done
+  echo "TRUNCATE $TABLES_CSV RESTART IDENTITY CASCADE;"
+  cat "$DUMP"
+  for t in "${TABLES[@]}"; do echo "ALTER TABLE public.$t ENABLE TRIGGER USER;"; done
+} | psql "$REMOTE_DB_URL" -v ON_ERROR_STOP=1
 
 # ── Verify row counts match ──────────────────────────────────────────────────
 echo "📊 Row-count check (local vs remote):"

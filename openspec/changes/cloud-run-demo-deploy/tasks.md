@@ -24,10 +24,10 @@
 
 ## 4. One-time content migration (Plan A)
 
-- [ ] 4.1 `pg_dump` the application tables (documents, document_chunks, document_references, knowledge_bases, …) from local
-- [ ] 4.2 Restore the dump into the hosted DB; compare row counts to source
-- [ ] 4.3 Create the shared demo account in hosted Supabase Auth; capture its UUID
-- [ ] 4.4 `UPDATE` all migrated content `user_id` to the shared UUID (content is single-owner → straight remap; no `auth.users` migration)
+- [x] 4.1 `pg_dump` the application tables (documents, document_chunks, document_references, knowledge_bases, …) from local
+- [x] 4.2 Restore the dump into the hosted DB; compare row counts to source
+- [x] 4.3 Create the shared demo account in hosted Supabase Auth; capture its UUID
+- [x] 4.4 `UPDATE` all migrated content `user_id` to the shared UUID (content is single-owner → straight remap; no `auth.users` migration)
 - [ ] 4.5 Copy Storage assets (originally-uploaded files) to hosted Supabase Storage — required: the demo includes original-file download
 
 ## 5. Cloud Run deployment
