@@ -28,6 +28,11 @@ acct="$(gcloud auth list --filter=status:ACTIVE --format='value(account)' 2>/dev
 gcloud config set project "$PROJECT" >/dev/null 2>&1
 echo "✓ gcloud: $acct @ $PROJECT ($REGION)"
 
+# Cloud Run v2 URLs are deterministic: https://<service>-<projectnumber>.<region>.run.app
+# So the web URL is known before web deploys — needed as api's APP_URL (CORS).
+PROJECT_NUM="$(gcloud projects describe "$PROJECT" --format='value(projectNumber)' 2>/dev/null)"
+WEB_URL="https://team-kms-web-${PROJECT_NUM}.${REGION}.run.app"
+
 svc_url() { gcloud run services describe "$1" --region "$REGION" --format='value(status.url)' 2>/dev/null; }
 
 # ── Build an env-vars YAML from an allowlist of .env.cloud (avoids comma issues) ─
@@ -72,7 +77,8 @@ stage_api() {
   local conv; conv="$(svc_url team-kms-converter)"
   [ -n "$conv" ] || { echo "❌ converter not deployed yet — run the converter stage first." >&2; exit 1; }
   local envf; envf="$(mktemp)"; gen_env_yaml "$envf"
-  printf "CONVERTER_URL: '%s'\n" "$conv" >> "$envf"   # deploy-output, injected here
+  printf "CONVERTER_URL: '%s'\n" "$conv" >> "$envf"      # deploy-output
+  printf "APP_URL: '%s'\n" "$WEB_URL" >> "$envf"         # deploy-output (CORS origin)
   echo "🚀 deploy api…"
   gcloud run deploy team-kms-api --image "$AR/api:latest" --region "$REGION" \
     --allow-unauthenticated --session-affinity \
