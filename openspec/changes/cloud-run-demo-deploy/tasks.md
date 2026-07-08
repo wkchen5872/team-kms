@@ -1,19 +1,19 @@
 ## 1. Credential isolation (do first — prevents secret leakage)
 
-- [ ] 1.1 Add `.gcloud/` and `supabase/.temp` to `.gitignore`; verify with `git check-ignore .gcloud/sa-key.json`
-- [ ] 1.2 Add placeholders to `.env.example`: `GOOGLE_APPLICATION_CREDENTIALS`, `CLOUDSDK_CORE_PROJECT`, `SUPABASE_ACCESS_TOKEN` (no real values)
+- [x] 1.1 Add `.gcloud/` and `supabase/.temp` to `.gitignore`; verify with `git check-ignore .gcloud/sa-key.json`
+- [x] 1.2 Add placeholders to `.env.example`: `GOOGLE_APPLICATION_CREDENTIALS`, `CLOUDSDK_CORE_PROJECT`, `SUPABASE_ACCESS_TOKEN` (no real values)
 - [ ] 1.3 Create GCP Service Account + key under `.gcloud/`; put path in local `.env`. Confirm `gcloud` uses it without a user-level `gcloud auth login`
 - [ ] 1.4 Generate a Supabase personal access token; set `SUPABASE_ACCESS_TOKEN` in `.env`
 
 ## 2. Runtime code changes (TDD)
 
-- [ ] 2.1 `PORT` support in `apps/api`, `apps/mcp`, `apps/converter`: listen on `process.env.PORT ?? <existing *_PORT default>`.
+- [x] 2.1 `PORT` support in `apps/api`, `apps/mcp`, `apps/converter`: listen on `process.env.PORT ?? <existing *_PORT default>`.
       Test requirement: unit test asserting resolved port = `PORT` when set, else the legacy default (Red before Green)
-- [ ] 2.2 `LISTEN` connection mode in `packages/shared`: ensure the `document_changes` listener uses a session-mode / direct connection, not the transaction pooler.
+- [x] 2.2 `LISTEN` connection mode in `packages/shared`: ensure the `document_changes` listener uses a session-mode / direct connection, not the transaction pooler.
       Test requirement: test (or documented integration check) that NOTIFY is received over the chosen connection
-- [ ] 2.3 `apps/web` build: `NEXT_PUBLIC_*` sourced from build args (public Supabase + api URLs); production run uses `next build && next start`.
+- [x] 2.3 `apps/web` build: `NEXT_PUBLIC_*` sourced from build args (public Supabase + api URLs); production run uses `next build && next start`.
       Verify: built bundle contains no `localhost`/`127.0.0.1` for these vars
-- [ ] 2.4 Run full suite (`pnpm test`, `pnpm typecheck`, `pnpm lint`); no regressions
+- [x] 2.4 Run full suite (`pnpm test`, `pnpm typecheck`, `pnpm lint`); no regressions
 
 ## 3. Hosted Supabase provisioning
 

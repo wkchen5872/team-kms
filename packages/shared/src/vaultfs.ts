@@ -432,7 +432,7 @@ export class PostgresVaultFS {
       const bytes = Buffer.from(img.dataBase64, "base64");
       const fileHash = createHash("sha256").update(bytes).digest("hex");
       const ocr = (img.ocrText ?? "").trim();
-      let asset = await client.query<{ id: string; filename: string }>(
+      const asset = await client.query<{ id: string; filename: string }>(
         "SELECT id, filename FROM documents WHERE knowledge_base_id = $1 AND file_hash = $2 " +
           "AND kind = 'asset' AND user_id = $3 LIMIT 1",
         [kbId, fileHash, this.userId],

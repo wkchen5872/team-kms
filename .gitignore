@@ -10,3 +10,7 @@ coverage/
 .env
 .env.local
 **/.env.local
+
+# Project-scoped cloud credentials (never commit)
+.gcloud/
+supabase/.temp/

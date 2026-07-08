@@ -17,6 +17,7 @@ import {
   serviceQuery,
   serviceQueryRow,
   serviceExecute,
+  resolvePort,
 } from "@team-kms/shared";
 import { HttpConverterClient } from "./converter-client.js";
 import { ingestSource, ingestAsync, EXTRACTABLE_TYPES } from "./ingest.js";
@@ -431,7 +432,7 @@ app.patch("/v1/files/:id", async (c) => {
 });
 
 if (process.env.NODE_ENV !== "test") {
-  const port = Number(process.env.API_PORT ?? "8000");
+  const port = resolvePort(process.env.PORT, process.env.API_PORT, 8000);
   const server = serve({ fetch: app.fetch, port }) as unknown as import("node:http").Server;
   void startDocumentListener();
   // Async extraction queue + recover anything left mid-flight by a prior crash.

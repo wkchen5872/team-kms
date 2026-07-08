@@ -9,6 +9,11 @@ import { z } from "zod";
 
 const ConfigSchema = z.object({
   DATABASE_URL: z.string().url(),
+  // Dedicated connection for LISTEN; the transaction pooler drops LISTEN, so on
+  // hosted Supabase this points at the session pooler / direct. Falls back to
+  // DATABASE_URL when unset. An empty env var (`DATABASE_LISTEN_URL=`) counts as
+  // unset, so coerce "" → undefined before URL validation.
+  DATABASE_LISTEN_URL: z.preprocess((v) => (v === "" ? undefined : v), z.string().url().optional()),
   SUPABASE_URL: z.string().url(),
   SUPABASE_ANON_KEY: z.string().optional(),
   SUPABASE_SERVICE_ROLE_KEY: z.string().optional(),
@@ -32,6 +37,19 @@ const ConfigSchema = z.object({
 });
 
 export type Config = z.infer<typeof ConfigSchema>;
+
+/**
+ * Resolve the port a service should bind. Cloud Run injects `PORT`; prefer it,
+ * then the service-specific var (e.g. `API_PORT`), then the default. Pure so it
+ * is trivially testable.
+ */
+export function resolvePort(
+  port: string | undefined,
+  fallback: string | undefined,
+  def: number,
+): number {
+  return Number(port ?? fallback ?? def);
+}
 
 /** Validate the given record (defaults to process.env) into a typed Config. */
 export function loadConfig(env: Record<string, string | undefined> = process.env): Config {

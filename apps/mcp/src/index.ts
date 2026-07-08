@@ -6,7 +6,7 @@
 import { Hono } from "hono";
 import { serve } from "@hono/node-server";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
-import { PostgresVaultFS, resolveUserId, extractBearer } from "@team-kms/shared";
+import { PostgresVaultFS, resolveUserId, extractBearer, resolvePort } from "@team-kms/shared";
 import { buildMcpServer } from "./server.js";
 
 export const app = new Hono();
@@ -32,7 +32,7 @@ app.all("/mcp", async (c) => {
 });
 
 if (process.env.NODE_ENV !== "test") {
-  const port = Number(process.env.MCP_PORT ?? "8001");
+  const port = resolvePort(process.env.PORT, process.env.MCP_PORT, 8001);
   serve({ fetch: app.fetch, port });
   console.log(`mcp listening on :${port}`);
 }

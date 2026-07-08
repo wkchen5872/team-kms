@@ -49,8 +49,9 @@ export async function closePool(): Promise<void> {
  * Returns a stop function.
  */
 export async function listen(channel: string, onPayload: (payload: string) => void): Promise<() => Promise<void>> {
-  const { DATABASE_URL } = loadConfig();
-  const client = new pg.Client({ connectionString: DATABASE_URL });
+  const { DATABASE_URL, DATABASE_LISTEN_URL } = loadConfig();
+  // LISTEN needs a session-mode connection; the transaction pooler drops it.
+  const client = new pg.Client({ connectionString: DATABASE_LISTEN_URL ?? DATABASE_URL });
   await client.connect();
   client.on("notification", (msg) => {
     if (msg.payload) onPayload(msg.payload);
