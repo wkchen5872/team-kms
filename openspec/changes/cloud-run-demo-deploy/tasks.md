@@ -40,9 +40,9 @@
 
 ## 6. Verification (dress-rehearsal checklist)
 
-- [ ] 6.1 Sign in with the shared account on the deployed web → migrated content is visible (RLS ok)
-- [ ] 6.2 Run a search in the UI → pgroonga results return
-- [ ] 6.3 Upload one file through the deployed api → TUS→Storage works, converter converts, WebSocket progress arrives
-- [ ] 6.4 Download an original uploaded file from a migrated document → served from hosted Storage
-- [ ] 6.5 Confirm `mcp` is not deployed and `docker-compose.yml` has no diff
-- [ ] 6.6 Share the web URL with the team
+- [x] 6.1 Sign in with the shared account on the deployed web → migrated content is visible (RLS ok)
+- [x] 6.2 Run a search in the UI → pgroonga results return
+- [x] 6.3 Upload one file through the deployed api → TUS→Storage works, converter converts, WebSocket progress arrives
+- [x] 6.4 Download an original uploaded file from a migrated document → served from hosted Storage
+- [x] 6.5 Confirm `mcp` is not deployed and `docker-compose.yml` has no diff
+- [x] 6.6 Share the web URL with the team
