@@ -17,10 +17,10 @@
 
 ## 3. Hosted Supabase provisioning
 
-- [ ] 3.1 Create hosted Supabase project; record project-ref and connection strings (transaction pooler for queries, session pooler/direct for LISTEN)
-- [ ] 3.2 Enable `pgroonga` extension in the dashboard
-- [ ] 3.3 Apply existing migrations (`supabase db push --project-ref <ref>`); confirm pgroonga indexes created
-- [ ] 3.4 Smoke-test a `&@~` query against `document_chunks` in the hosted DB
+- [x] 3.1 Create hosted Supabase project; record project-ref and connection strings (transaction pooler for queries, session pooler/direct for LISTEN)
+- [x] 3.2 Enable `pgroonga` extension in the dashboard
+- [x] 3.3 Apply existing migrations (`supabase db push --project-ref <ref>`); confirm pgroonga indexes created
+- [x] 3.4 Smoke-test a `&@~` query against `document_chunks` in the hosted DB
 
 ## 4. One-time content migration (Plan A)
 
