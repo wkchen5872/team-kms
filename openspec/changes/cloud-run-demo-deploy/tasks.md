@@ -2,8 +2,8 @@
 
 - [x] 1.1 Add `.gcloud/` and `supabase/.temp` to `.gitignore`; verify with `git check-ignore .gcloud/sa-key.json`
 - [x] 1.2 Add placeholders to `.env.example`: `GOOGLE_APPLICATION_CREDENTIALS`, `CLOUDSDK_CORE_PROJECT`, `SUPABASE_ACCESS_TOKEN` (no real values)
-- [ ] 1.3 Create GCP Service Account + key under `.gcloud/`; put path in local `.env`. Confirm `gcloud` uses it without a user-level `gcloud auth login`
-- [ ] 1.4 Generate a Supabase personal access token; set `SUPABASE_ACCESS_TOKEN` in `.env`
+- [x] 1.3 GCP auth project-scoped (Option 2, not SA key): `CLOUDSDK_CONFIG=./.gcloud` + `gcloud auth login` → isolated in-repo login, no global pollution. `.env` `CLOUDSDK_CORE_PROJECT` set; `GOOGLE_APPLICATION_CREDENTIALS` removed (unused without a key)
+- [x] 1.4 Generated a Supabase personal access token; set `SUPABASE_ACCESS_TOKEN` in `.env`
 
 ## 2. Runtime code changes (TDD)
 
