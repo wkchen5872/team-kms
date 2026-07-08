@@ -66,7 +66,9 @@ stage_converter() {
 
 stage_api() {
   echo "🔨 build+push api image (root Dockerfile, amd64)…"
-  docker buildx build --platform linux/amd64 -f Dockerfile -t "$AR/api:latest" . --push
+  docker buildx build --platform linux/amd64 -f Dockerfile \
+    --build-arg BUILD_FILTER="--filter=@team-kms/api..." \
+    -t "$AR/api:latest" . --push
   local conv; conv="$(svc_url team-kms-converter)"
   [ -n "$conv" ] || { echo "❌ converter not deployed yet — run the converter stage first." >&2; exit 1; }
   local envf; envf="$(mktemp)"; gen_env_yaml "$envf"
@@ -87,6 +89,7 @@ stage_web() {
   local sup anon; sup="$(get_cloud SUPABASE_URL)"; anon="$(get_cloud SUPABASE_ANON_KEY)"
   echo "🔨 build+push web (NEXT_PUBLIC baked: api=$api)…"
   docker buildx build --platform linux/amd64 -f Dockerfile \
+    --build-arg BUILD_FILTER="--filter=@team-kms/web..." \
     --build-arg NEXT_PUBLIC_SUPABASE_URL="$sup" \
     --build-arg NEXT_PUBLIC_SUPABASE_ANON_KEY="$anon" \
     --build-arg NEXT_PUBLIC_API_URL="$api" \

@@ -14,5 +14,9 @@ ARG NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_SUPABASE_URL=$NEXT_PUBLIC_SUPABASE_URL \
     NEXT_PUBLIC_SUPABASE_ANON_KEY=$NEXT_PUBLIC_SUPABASE_ANON_KEY \
     NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
-RUN pnpm install --no-frozen-lockfile && pnpm -r --filter "!@team-kms/converter" build
+# Which package to build. Per-service so the api image doesn't build web (web
+# needs NEXT_PUBLIC_* baked; building it in the api image would fail). Override
+# with --build-arg BUILD_FILTER="--filter=@team-kms/api..." (or web).
+ARG BUILD_FILTER="-r --filter=!@team-kms/converter"
+RUN pnpm install --no-frozen-lockfile && pnpm $BUILD_FILTER build
 # Service is selected via `command:` in docker-compose.yml.
