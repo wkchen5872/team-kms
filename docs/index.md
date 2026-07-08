@@ -28,6 +28,7 @@ okf_version: "0.1"
 ## Conventions & SOP
 
 * [Coding Conventions](conventions.md) - Naming, formatting, and style rules for AI agents
+* [環境變數配置](env-configuration.md) - 各 env 檔職責、local/cloud 切分、readiness 標記與常見坑
 * [Wiki 整理 SOP](architecture/wiki-authoring-sop.md) - Claude 端 model / effort / thinking 設定
 * [測試指南](testing.md) - 自動化測試套件、手動端對端、連接 Claude over MCP 與疑難排解
 

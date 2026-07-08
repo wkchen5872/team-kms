@@ -18,9 +18,9 @@
 
 ## 3. Fill what's ready
 
-- [ ] 3.1 `.env.cloud`: fill `DATABASE_LISTEN_URL` with the hosted **session pooler**
+- [x] 3.1 `.env.cloud`: fill `DATABASE_LISTEN_URL` with the hosted **session pooler**
       connection string
-- [ ] 3.2 `.env.cloud`: fill hosted S3 vars (`AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY`/
+- [x] 3.2 `.env.cloud`: fill hosted S3 vars (`AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY`/
       `S3_ENDPOINT`/`AWS_REGION`) from the hosted S3 access keys already generated
 - [x] 3.3 Leave `deploy-output` vars (`CONVERTER_URL`, `NEXT_PUBLIC_API_URL`) blank —
       the Cloud Run deploy step fills them in sequence
