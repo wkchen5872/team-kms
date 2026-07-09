@@ -74,7 +74,9 @@ on any other tool, use that tool's equivalent for the same stage.
 1. **Test first** — write/update tests from the spec before implementation.
 2. **Implement** — adhere to `docs/architecture.md` and `docs/conventions.md`.
 3. **Verify** — run the OpenSpec verify stage against the spec, plus the native
-   linter, type check, and tests. *(Claude Code: `/opsx:verify`)*
+   linter, type check, and tests. *(Claude Code: `/opsx:verify`)* Optionally audit
+   test strength on the changed files with diff-based mutation testing — advisory,
+   never a gate. *(Claude Code: `/mutation-check`)*
 4. **Self-heal** — on failure, read logs, fix, repeat until green.
 
 ## 5. Definition of Done (Level 2)

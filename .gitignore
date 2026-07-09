@@ -9,8 +9,13 @@ coverage/
 # Secrets / local env (.env.example IS committed)
 .env
 .env.local
+.env.cloud
 **/.env.local
 
 # Project-scoped cloud credentials (never commit)
 .gcloud/
 supabase/.temp/
+.stryker-tmp/
+reports/stryker-incremental.json
+.mutation-state
+openspec/.mutation-state
