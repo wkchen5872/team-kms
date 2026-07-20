@@ -16,7 +16,7 @@ timestamp: 2026-07-08T00:00:00Z
 
 ```
 team browser ──► web (Cloud Run) ──► api (Cloud Run) ──► hosted Supabase
-                                          └──► converter (Cloud Run, ingress internal)
+                                          └──► converter (Cloud Run, ingress all + secret)
    project: hardy-thinker-257409 · region: asia-northeast1（配合 Supabase ap-northeast-1）
 ```
 
@@ -44,7 +44,7 @@ team browser ──► web (Cloud Run) ──► api (Cloud Run) ──► hoste
 
 ```bash
 scripts/deploy-cloudrun.sh setup       # Artifact Registry + docker auth
-scripts/deploy-cloudrun.sh converter   # build+push amd64 → deploy（ingress internal）
+scripts/deploy-cloudrun.sh converter   # build+push amd64 → deploy（ingress all + secret）
 scripts/deploy-cloudrun.sh api         # deploy（session-affinity；注入 CONVERTER_URL + APP_URL）
 scripts/deploy-cloudrun.sh web         # build 帶 NEXT_PUBLIC build-arg → deploy
 scripts/deploy-cloudrun.sh all         # 一次跑完
@@ -72,6 +72,7 @@ scripts/deploy-cloudrun.sh urls        # 印出服務網址
 | `.env.cloud` 值帶引號/行尾註解 → URL 非法 | 值只放純內容,不加引號/註解 |
 | DB 密碼特殊字元 → auth 失敗 | 連線字串裡 percent-encode 密碼 |
 | `Container failed to listen on PORT` | 服務讀 `process.env.PORT`（見 runtime-portability） |
+| converter `--ingress internal` → api 呼叫回 `converter /extract failed (404)`（GFE 頁），檔案卡 `failed` | api 無 VPC connector、走公網呼叫 converter，`internal` 只收 VPC 流量。converter 用 `--ingress all`，靠 `CONVERTER_SECRET` bearer 保護；要真正鎖 internal 得幫 api 掛 VPC connector 並設 `--vpc-egress` |
 
 ## 回滾
 

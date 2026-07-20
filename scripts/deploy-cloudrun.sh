@@ -62,7 +62,8 @@ stage_converter() {
   local envf; envf="$(mktemp)"; gen_env_yaml "$envf"
   echo "🚀 deploy converter…"
   gcloud run deploy team-kms-converter --image "$AR/converter:latest" --region "$REGION" \
-    --allow-unauthenticated --ingress internal \
+    --allow-unauthenticated --ingress all \
+    `# ingress all: api 走公網呼叫 converter，無 VPC connector；internal 會被 GFE 回 404。靠 CONVERTER_SECRET bearer 保護。` \
     --memory 2Gi --cpu 2 --concurrency 2 --min-instances 1 --timeout 300 \
     --env-vars-file "$envf"
   rm -f "$envf"
