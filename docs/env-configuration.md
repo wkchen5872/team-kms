@@ -3,7 +3,7 @@ type: Reference
 title: Environment Configuration
 description: Which env file owns which variables, the local/cloud split, and how to tell what is ready to fill.
 tags: [config, env, deployment, conventions]
-timestamp: 2026-07-08T00:00:00Z
+timestamp: 2026-08-24T00:00:00Z
 ---
 
 # 環境變數配置
@@ -36,7 +36,7 @@ A. CLI/部署 │      ← 同一份，跟環境無關（都是從筆電操作�
 B. 後端     │  DATABASE_URL=127…        │  DATABASE_URL=pooler:6543…
    runtime  │  SUPABASE_URL=127…        │  SUPABASE_URL=https://…
   (api/mcp/ │  S3_ENDPOINT=127…         │  S3=hosted keys
-   converter)│  CONVERTER_URL=127:8002  │  CONVERTER_URL=部署後才知道
+  converter)│  CONVERTER_URL=127:8012  │  CONVERTER_URL=部署後才知道
 ───────────┼───────────────────────────┼──────────────────────────
 C. web      │  NEXT_PUBLIC_*=127…       │  NEXT_PUBLIC_*=公開URL
    build-arg│  apps/web/.env.local      │  --build-arg（含 deploy-output）
@@ -79,6 +79,26 @@ DATABASE_LISTEN_URL  → session pooler     :5432   ← LISTEN（document_change
 
 `deploy-output` 由 Cloud Run 部署步驟依 **converter → api → web** 順序邊部邊回填。
 
+## 本機 port 與資料邊界
+
+本專案刻意保留一組專屬本機 port，避免與其他常見的 `3000`／`8000`／`5432x` 專案互撞：
+
+| 元件 | Port |
+|---|---:|
+| Web | 3010 |
+| API | 8010 |
+| MCP | 8011 |
+| Converter | 8012 |
+| Supabase API / DB / Studio | 55321 / 55322 / 55323 |
+
+根 `.env` 的 B-local 值應全部指向同一套 local Supabase；`apps/web/.env.local` 也必須指向同一套。
+若其中一個檔案仍指向 hosted Supabase，就會出現「登入成功但看不到預期資料」或 API `401` 等難以判讀的
+現象。
+
+local 與 hosted 是兩個獨立資料庫。`supabase link` 建立 CLI 與 remote 專案的關聯；`db pull`／`db push`
+只同步 schema migration，並不會同步 wiki、來源檔或 Auth 使用者。內容搬遷必須依
+[部署指南](/docs/deployment.md#一次性資料搬遷已完成不要當成日常部署)明確執行。
+
 ## 規則
 
 - 有新變數 → 先進 `.env.example` 對應區塊(含 scope + readiness),再填實際檔,避免漂移。
@@ -87,3 +107,7 @@ DATABASE_LISTEN_URL  → session pooler     :5432   ← LISTEN（document_change
 - `LIBREOFFICE_BIN` 值要分:本機 `soffice` / 容器 `libreoffice`。
 
 相關:[架構總覽](/docs/architecture.md)、[Agent 作業規範](/docs/agent-protocol.md)。
+
+# Citations
+
+[1] [Supabase CLI reference](https://github.com/supabase/cli/blob/develop/apps/cli/docs/go-cli-reference.md) — `link` 關聯 remote 專案；`db pull`／`db push` 處理 schema migration。

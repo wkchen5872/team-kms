@@ -3,7 +3,7 @@ type: Architecture
 title: 系統總覽與全域架構
 description: Team KMS 全域架構圖、資料流摘要、核心技術棧與部署拓樸。
 tags: [architecture, overview, mcp]
-timestamp: 2025-07-02T00:00:00Z
+timestamp: 2026-08-24T00:00:00Z
 ---
 
 # 系統總覽與全域架構
@@ -101,9 +101,13 @@ graph TD
 
 ## 部署拓樸
 
-- 根目錄 `Dockerfile`：Node 22-slim，建置 `api` / `mcp` / `web`。
-- `apps/converter/Dockerfile`：額外安裝 JRE headless + LibreOffice（writer/impress/calc）。
-- `docker-compose.yml`：`converter`(8002) ← `api`(8000) ← `mcp`(8001) / `web`(3000)；
-  不內嵌 Postgres，資料庫/Auth/Storage 全由 Supabase 提供。
+- **本機開發**：`pnpm dev` 啟動 Web `3010`、API `8010`、MCP `8011`、Converter `8012`，連向本機
+  Supabase。MCP 是 Claude/Codex 的作者入口。
+- **目前 production**：Cloud Run 部署 Web、API、Converter，連向 hosted Supabase；MCP 未部署，
+  production Web 用來提供既有 wiki 的瀏覽入口。
+- 根目錄 `Dockerfile` 可建置 `api` / `mcp` / `web`；`apps/converter/Dockerfile` 額外安裝 JRE
+  headless + LibreOffice。`docker-compose.yml` 是容器拓樸參考，不是目前 production 部署入口。
+- local 與 hosted Supabase 的內容不會自動同步；資料搬遷與 production 邊界見
+  [部署指南](/docs/deployment.md)。
 - **OCR 環境變數**（可選，僅 `apps/api`）：`OCR_PROVIDER`（`mistral`/`gemini`/`none`，未設＝`none`）
   + 對應 `MISTRAL_API_KEY` / `GEMINI_API_KEY`。未設則不跑 OCR（只存圖給 Claude 看），維持後端零 LLM。

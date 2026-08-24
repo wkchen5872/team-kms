@@ -4,6 +4,10 @@ okf_version: "0.1"
 
 # Docs Knowledge Bundle
 
+## Start Here
+
+* [README](../README.md) - 先選擇本機開發、測試、production 瀏覽或部署路徑
+
 ## Agent Protocol
 
 * [Agent Operating Protocol](agent-protocol.md) - What to read first, hard prohibitions, task-scale protocol, done criteria (managed by wk-agent-ops)
@@ -29,7 +33,7 @@ okf_version: "0.1"
 
 * [Coding Conventions](conventions.md) - Naming, formatting, and style rules for AI agents
 * [環境變數配置](env-configuration.md) - 各 env 檔職責、local/cloud 切分、readiness 標記與常見坑
-* [Cloud Run 部署](deployment.md) - 三服務部署到 Cloud Run + hosted Supabase、guarded 腳本、正式部署雷區
+* [Cloud Run 部署](deployment.md) - production Web/API/Converter、hosted Supabase、一次性資料搬遷與 MCP 邊界
 * [Wiki 整理 SOP](architecture/wiki-authoring-sop.md) - Claude 端 model / effort / thinking 設定
 * [測試指南](testing.md) - 自動化測試套件、手動端對端、連接 Claude over MCP 與疑難排解
 

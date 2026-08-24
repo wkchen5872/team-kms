@@ -1,14 +1,16 @@
 ---
 type: Playbook
 title: 測試指南 (Testing Guide)
-description: 自動化測試套件、手動端對端、連接 Claude over MCP 與疑難排解。
+description: 依目的選擇自動化、手動端對端與 MCP 撰寫驗證，並清楚區分本機與 production。
 tags: [testing, sop, mcp]
-timestamp: 2026-06-30T00:00:00Z
+timestamp: 2026-08-24T00:00:00Z
 ---
 
 # 測試指南 (Testing Guide)
 
-兩種測法：**(A) 自動化測試套件**（最快證明整套能跑），**(B) 手動端到端**（親眼看 Claude 經 MCP 寫 wiki）。
+先決定你要驗證什麼：**(A) 自動化測試**快速驗證程式與整條本機堆疊；**(B) 手動端對端**讓你親眼確認
+「上傳來源 → Claude 經 MCP 寫 wiki → Web 顯示結果」。兩者都只測**本機**環境；production 網站目前
+沒有 MCP，因此不能用它驗證 Claude 撰寫流程。
 
 ## 前置：本機 Supabase
 
@@ -19,8 +21,9 @@ cd ~/wk_projects/team-kms
 supabase status          # 沒開就 supabase start
 ```
 
-`.env`（repo 根目錄）已含本機 Supabase 的金鑰；`apps/web/.env.local` 含前端用的 `NEXT_PUBLIC_*`。
-若重建環境，從 `supabase status -o env` 取金鑰回填。
+`.env`（repo 根目錄）供 API/MCP/Converter 使用；`apps/web/.env.local` 供 Next.js 使用。若重建環境，
+從 `supabase status -o env` 取本機 URL／keys 回填。這不會改動 hosted Supabase；環境邊界見
+[環境變數配置](/docs/env-configuration.md)。
 
 ---
 
@@ -54,10 +57,17 @@ pnpm -r build           # 全 build（含 next build）— docker-compose 用的
 
 ```bash
 supabase start          # DB（若未開）
-pnpm dev                # 同時起 converter:8002 · api:8000 · mcp:8001 · web:3000，各自自動載 .env
+pnpm dev                # 同時啟動四個服務，各自自動讀取正確的 env 檔
 ```
 
-正式環境則是 `docker compose up`。
+| 服務 | 本機位址 | 這一步在驗證什麼 |
+|---|---|---|
+| Web | http://localhost:3010 | 登入、KB／wiki 瀏覽、上傳與圖譜 |
+| API | http://localhost:8010 | Web 的 REST／WebSocket 資料路徑 |
+| MCP | http://localhost:8011/mcp | Claude/Codex 的來源讀取與 wiki 撰寫 |
+| Converter | http://localhost:8012 | PDF／Office 解析 |
+
+production 另依[部署指南](/docs/deployment.md)運作，並非以 `docker compose up` 作為目前正式入口。
 
 ### 2. 建一個使用者並拿 token
 
@@ -101,6 +111,9 @@ curl -s "localhost:8010/v1/knowledge-bases/$SLUG/documents" -H "Authorization: B
 
 ### 4. 接上 MCP，讓 Claude 寫 wiki
 
+MCP client 使用的 token 決定「哪一個帳號的資料可讀寫」；`.env` 決定 MCP server 連的是哪一個
+Supabase。兩者須先確認，否則最常見的症狀是連線正常卻看不到預期 KB。
+
 先用 curl 確認 MCP 通（可選）：
 
 ```bash
@@ -116,6 +129,18 @@ claude mcp add team-kms --transport http http://localhost:8011/mcp \
   --header "Authorization: Bearer $TOKEN"
 claude mcp list          # 應看到 team-kms ✓ connected
 ```
+
+接 **Codex CLI** 時，先把 key 放在 shell 環境變數，再啟動 Codex：
+
+```bash
+export TEAM_KMS_API_KEY="$TOKEN"
+codex mcp add team-kms --url http://localhost:8011/mcp \
+  --bearer-token-env-var TEAM_KMS_API_KEY
+codex mcp list
+```
+
+已存在同名 server 時，先 `codex mcp remove team-kms` 再新增。Codex Desktop／IDE 必須重啟，才會讀取
+新的 MCP 設定。[1]
 
 寫進去的設定長這樣（要手改也行；加 `-s user` 可跨專案共用）：
 
@@ -151,19 +176,16 @@ http://localhost:3010 用 **同一個** `demo@test.local` 登入（RLS 隔離，
 | web `TypeError: Failed to fetch` / CORS | api 未在跑，或 `APP_URL` 不符。CORS 已內建允許 `localhost:3010`；確認 `pnpm dev` 的 api 有起來 |
 | MCP / API 回 `401` | token 過期（~1h）。重跑步驟 2，`claude mcp remove team-kms` 再 add（或改 `~/.claude.json` 的 Bearer） |
 | PDF/Office 上傳失敗 | converter 沒跑，或 host 沒裝 LibreOffice（Office 才需要）。`pnpm dev` 會起 converter |
-| KB 清單空的 | 正常 — RLS 下新帳號只看得到自己的 KB。上傳或讓 Claude 建即可 |
-| port 8000/8001 被占用 | 先 `lsof -ti:8000 | xargs kill`（8001 同理）再 `pnpm dev` |
+| KB 清單空的 | 先確認登入帳號、MCP token 與 `.env` 的 Supabase 環境是否一致。RLS 下新帳號只看得到自己的 KB；本機與 hosted 也不會自動同步 |
+| port 被占用 | Team KMS 預設使用 Web `3010`、API `8010`、MCP `8011`、Converter `8012`。先找出佔用該 port 的程序，不要直接關閉不屬於本專案的服務 |
 | 自動化測試全 skip | 沒連到 DB — 確認 `supabase start` 且 `.env` 的 `DATABASE_URL` 正確 |
 
-## 與原版 lucasastorian/llmwiki 並排跑(port remap)
+## 與其他本機專案並行
 
-原版佔 web `:3000` / api `:8000`。要同時跑我們的做視覺對照,用 env 覆蓋我們這邊的 port(不改碼):
+Team KMS 已保留 Web `3010`、API `8010`、MCP `8011`、Converter `8012`，local Supabase 使用
+`55320–55329`。這能避開常見的 `3000`／`8000`／`5432x` 預設值；若仍衝突，先在本機環境設定中調整
+整個 Team KMS 區段，並同步更新 Web、API、MCP 與 Supabase URL。
 
-```bash
-# 我們的 api 改 8010、web 改 3010,並讓 web 指向新的 api port
-API_PORT=8010 APP_URL=http://localhost:3010 pnpm --filter @team-kms/api dev
-NEXT_PUBLIC_API_URL=http://localhost:8010 pnpm --filter @team-kms/web dev -- -p 3010
-```
+# Citations
 
-mcp(8001)/converter(8002)一般不與原版衝突。**在自己的終端機跑,收工時 `Ctrl-C` 收乾淨**
-(避免孤兒 process 佔 port)。
+[1] [OpenAI Codex MCP documentation](https://developers.openai.com/codex/mcp/) — Codex 支援 Streamable HTTP MCP、bearer token 環境變數與重啟後載入設定。
