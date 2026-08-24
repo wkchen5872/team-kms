@@ -53,7 +53,7 @@ timestamp: 2025-07-02T00:00:00Z
 
 - **`lib/api.ts`**：`apiFetch<T>(path, token, init?)` — **3 引數**（token 由呼叫端從
   `useUserStore` 取），設 `Authorization: Bearer`、非 FormData 自動帶 JSON content-type、
-  非 2xx throw `ApiError`。讀 `NEXT_PUBLIC_API_URL`（預設 `http://localhost:8000`）。
+  非 2xx throw `ApiError`。讀 `NEXT_PUBLIC_API_URL`（預設 `http://localhost:8010`）。
   另有 `getDocumentsWsUrl(kbId, token)` → `…/v1/ws/kb/:kbId?token=`。
 - **`stores/`**（zustand）：`useUserStore`（session token）、`useKBStore`（知識庫列表）、
   `useUploadStore`（上傳進度）。

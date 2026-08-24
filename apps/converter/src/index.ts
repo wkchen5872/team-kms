@@ -106,7 +106,7 @@ app.post("/extract", async (c) => {
 if (process.env.NODE_ENV !== "test") {
   // Cloud Run injects PORT; honor it over CONVERTER_PORT. Inlined (not the shared
   // resolvePort helper) to avoid adding a @team-kms/shared dep to the converter.
-  const port = Number(process.env.PORT ?? process.env.CONVERTER_PORT ?? "8002");
+  const port = Number(process.env.PORT ?? process.env.CONVERTER_PORT ?? "8012");
   serve({ fetch: app.fetch, port });
   console.log(`converter listening on :${port}`);
 }

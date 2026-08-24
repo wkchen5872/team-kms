@@ -24,7 +24,7 @@ timestamp: 2025-07-02T00:00:00Z
   - 否則 → 視為 Supabase JWT，走 `verifyToken()`（`packages/shared/auth.ts`）。
   - 成功後在 context 設定 `userId` 與 `fs = new PostgresVaultFS(userId)`，後續所有
     `fs.*` 呼叫皆為 user-scoped（RLS 生效）。
-- CORS：允許 `localhost:3000`，`exposeHeaders` 含 `Location`/`Upload-Offset`/
+- CORS：允許 `localhost:3010`，`exposeHeaders` 含 `Location`/`Upload-Offset`/
   `Upload-Length`/`Tus-Resumable`（TUS 協議所需）。
 - **路由總表**：
 

@@ -79,24 +79,24 @@ TOKEN=$(curl -s -X POST "$SUPABASE_URL/auth/v1/token?grant_type=password" \
 echo "$TOKEN"
 ```
 
-> Supabase Studio：http://127.0.0.1:54323 （可直接看 DB / 使用者）。
+> Supabase Studio：http://127.0.0.1:55323 （可直接看 DB / 使用者）。
 
 ### 3. 上傳來源檔
 
-**方式一：Web UI** — 開 http://localhost:3000 ，用 `demo@test.local` / `demo1234` 登入 →
+**方式一：Web UI** — 開 http://localhost:3010 ，用 `demo@test.local` / `demo1234` 登入 →
 進一個 KB → 左側 **📎 Upload sources**（可 Cmd/Shift 多選）。PDF/Office 需 converter 在跑；.md/.txt 直接索引。
 
 **方式二：API（curl）**
 
 ```bash
-SLUG=$(curl -s -X POST localhost:8000/v1/knowledge-bases -H "Authorization: Bearer $TOKEN" \
+SLUG=$(curl -s -X POST localhost:8010/v1/knowledge-bases -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" -d '{"name":"Demo"}' \
   | python3 -c "import sys,json;print(json.load(sys.stdin)['slug'])")
 printf 'Attention scales quadratically in sequence length. Flash attention reduces memory cost.' > /tmp/notes.md
-curl -s -X POST "localhost:8000/v1/knowledge-bases/$SLUG/upload" \
+curl -s -X POST "localhost:8010/v1/knowledge-bases/$SLUG/upload" \
   -H "Authorization: Bearer $TOKEN" -F "file=@/tmp/notes.md"
 # 確認
-curl -s "localhost:8000/v1/knowledge-bases/$SLUG/documents" -H "Authorization: Bearer $TOKEN"
+curl -s "localhost:8010/v1/knowledge-bases/$SLUG/documents" -H "Authorization: Bearer $TOKEN"
 ```
 
 ### 4. 接上 MCP，讓 Claude 寫 wiki
@@ -105,14 +105,14 @@ curl -s "localhost:8000/v1/knowledge-bases/$SLUG/documents" -H "Authorization: B
 
 ```bash
 H=(-H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" -H "Accept: application/json, text/event-stream")
-curl -s -X POST localhost:8001/mcp "${H[@]}" \
+curl -s -X POST localhost:8011/mcp "${H[@]}" \
   -d '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}'   # 應列出 10 個工具
 ```
 
 接 **Claude Code**（指令自動寫進 `~/.claude.json`，不用手動編輯）：
 
 ```bash
-claude mcp add team-kms --transport http http://localhost:8001/mcp \
+claude mcp add team-kms --transport http http://localhost:8011/mcp \
   --header "Authorization: Bearer $TOKEN"
 claude mcp list          # 應看到 team-kms ✓ connected
 ```
@@ -123,7 +123,7 @@ claude mcp list          # 應看到 team-kms ✓ connected
 "mcpServers": {
   "team-kms": {
     "type": "http",
-    "url": "http://localhost:8001/mcp",
+    "url": "http://localhost:8011/mcp",
     "headers": { "Authorization": "Bearer <TOKEN>" }
   }
 }
@@ -139,7 +139,7 @@ Claude 會呼叫 `search` / `read` / `create`，wiki 頁寫進 DB，引用 / wik
 
 ### 5. Web 看結果
 
-http://localhost:3000 用 **同一個** `demo@test.local` 登入（RLS 隔離，帳號要一致）→
+http://localhost:3010 用 **同一個** `demo@test.local` 登入（RLS 隔離，帳號要一致）→
 點該 KB → 看到 Claude 寫的 wiki 頁（markdown + mermaid 圖）→ 點 **📊 graph** 看引用關係圖。
 
 ---
@@ -148,7 +148,7 @@ http://localhost:3000 用 **同一個** `demo@test.local` 登入（RLS 隔離，
 
 | 症狀 | 原因 / 解法 |
 |---|---|
-| web `TypeError: Failed to fetch` / CORS | api 未在跑，或 `APP_URL` 不符。CORS 已內建允許 `localhost:3000`；確認 `pnpm dev` 的 api 有起來 |
+| web `TypeError: Failed to fetch` / CORS | api 未在跑，或 `APP_URL` 不符。CORS 已內建允許 `localhost:3010`；確認 `pnpm dev` 的 api 有起來 |
 | MCP / API 回 `401` | token 過期（~1h）。重跑步驟 2，`claude mcp remove team-kms` 再 add（或改 `~/.claude.json` 的 Bearer） |
 | PDF/Office 上傳失敗 | converter 沒跑，或 host 沒裝 LibreOffice（Office 才需要）。`pnpm dev` 會起 converter |
 | KB 清單空的 | 正常 — RLS 下新帳號只看得到自己的 KB。上傳或讓 Claude 建即可 |

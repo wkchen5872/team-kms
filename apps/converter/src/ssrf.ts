@@ -9,7 +9,7 @@
  */
 export interface SsrfOptions {
   bucket?: string;
-  /** Configured S3 endpoint (e.g. http://127.0.0.1:54321/storage/v1/s3). */
+  /** Configured S3 endpoint (e.g. http://127.0.0.1:55321/storage/v1/s3). */
   endpoint?: string;
 }
 

@@ -32,7 +32,7 @@ app.all("/mcp", async (c) => {
 });
 
 if (process.env.NODE_ENV !== "test") {
-  const port = resolvePort(process.env.PORT, process.env.MCP_PORT, 8001);
+  const port = resolvePort(process.env.PORT, process.env.MCP_PORT, 8011);
   serve({ fetch: app.fetch, port });
   console.log(`mcp listening on :${port}`);
 }

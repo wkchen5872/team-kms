@@ -1,4 +1,4 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8010";
 const WS_URL = API_URL.replace(/^http/, "ws");
 
 /** Thrown by apiFetch on non-2xx responses. Callers can branch on `.status`. */

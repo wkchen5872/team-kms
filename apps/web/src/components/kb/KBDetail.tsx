@@ -17,7 +17,7 @@ import { WikiContent } from '@/components/wiki/WikiContent'
 import type { DocumentListItem, WikiNode } from '@/lib/types'
 import type { ViewMode } from '@/app/(dashboard)/wikis/[slug]/[[...path]]/page'
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8010'
 
 
 function buildTreeFromDocs(docs: DocumentListItem[]): WikiNode[] {

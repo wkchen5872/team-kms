@@ -49,7 +49,7 @@ function isUnique(err: unknown): boolean {
 app.use(
   "*",
   cors({
-    origin: [process.env.APP_URL ?? "http://localhost:3000", "http://localhost:3000", "http://127.0.0.1:3000"],
+    origin: [process.env.APP_URL ?? "http://localhost:3010", "http://localhost:3010", "http://127.0.0.1:3010"],
     allowMethods: ["GET", "POST", "PATCH", "DELETE", "HEAD", "OPTIONS"],
     allowHeaders: ["Authorization", "Content-Type", "Upload-Length", "Upload-Offset", "Upload-Metadata", "Tus-Resumable"],
     exposeHeaders: ["Location", "Upload-Offset", "Upload-Length", "Tus-Resumable", "X-Document-Id", "X-Document-Status"],
@@ -360,7 +360,7 @@ app.post("/v1/knowledge-bases/:slug/upload", async (c) => {
 });
 
 function buildConverter(): HttpConverterClient {
-  return new HttpConverterClient(process.env.CONVERTER_URL ?? "http://localhost:8002", process.env.CONVERTER_SECRET ?? "");
+  return new HttpConverterClient(process.env.CONVERTER_URL ?? "http://localhost:8012", process.env.CONVERTER_SECRET ?? "");
 }
 
 // ── TUS 1.0 resumable upload ─────────────────────────────────────
@@ -432,7 +432,7 @@ app.patch("/v1/files/:id", async (c) => {
 });
 
 if (process.env.NODE_ENV !== "test") {
-  const port = resolvePort(process.env.PORT, process.env.API_PORT, 8000);
+  const port = resolvePort(process.env.PORT, process.env.API_PORT, 8010);
   const server = serve({ fetch: app.fetch, port }) as unknown as import("node:http").Server;
   void startDocumentListener();
   // Async extraction queue + recover anything left mid-flight by a prior crash.
