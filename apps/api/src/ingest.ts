@@ -8,7 +8,7 @@ import type { ConverterClient } from "./converter-client.js";
 import { ocrImageBytes, ocrPageImages, type OcrProvider } from "./ocr.js";
 import { enqueue } from "./jobs.js";
 
-const TEXT_TYPES = new Set(["md", "txt"]);
+const TEXT_TYPES = new Set(["md", "txt", "csv"]);
 // Raster images: stored as-is, never sent to the PDF/Office converter (which
 // would reject them). OCR, if configured, adds searchable text at finalize.
 const IMAGE_TYPES = new Set(["png", "jpg", "jpeg", "webp", "gif"]);
@@ -17,6 +17,7 @@ const OFFICE_PDF_TYPES = new Set(["pdf", "pptx", "ppt", "docx", "doc", "xls", "x
 /** Types whose content is derived by extraction/OCR (so re-extract is meaningful). */
 export const EXTRACTABLE_TYPES = new Set([...OFFICE_PDF_TYPES, ...IMAGE_TYPES]);
 const MIME: Record<string, string> = {
+  csv: "text/csv",
   pdf: "application/pdf",
   docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   pptx: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
@@ -40,6 +41,8 @@ export interface IngestInput {
   title?: string;
   tags?: string[];
   dirPath?: string;
+  /** False preserves distinct source records even when their bytes are identical. */
+  deduplicate?: boolean;
 }
 
 export interface IngestDeps {
@@ -65,7 +68,7 @@ export async function ingestSource(
   // Dedup: identical raw bytes already ingested in this KB → return the existing doc,
   // skip S3 upload and extraction. Scoped per KB; same bytes in another KB are allowed.
   const fileHash = createHash("sha256").update(input.bytes).digest("hex");
-  const existing = await fs.findByFileHash(input.kbId, fileHash);
+  const existing = input.deduplicate === false ? null : await fs.findByFileHash(input.kbId, fileHash);
   if (existing) return existing;
 
   if (TEXT_TYPES.has(input.fileType)) {
@@ -135,7 +138,7 @@ export async function ingestAsync(
   const dirPath = input.dirPath ?? "/";
 
   const fileHash = createHash("sha256").update(input.bytes).digest("hex");
-  const existing = await fs.findByFileHash(input.kbId, fileHash);
+  const existing = input.deduplicate === false ? null : await fs.findByFileHash(input.kbId, fileHash);
   if (existing) return { ...existing, status: "ready" };
 
   if (TEXT_TYPES.has(input.fileType)) {

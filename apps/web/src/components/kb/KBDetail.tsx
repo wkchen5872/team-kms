@@ -8,16 +8,27 @@ import * as tus from 'tus-js-client'
 import { useUserStore, useUploadStore } from '@/stores'
 import { useKBDocuments } from '@/hooks/useKBDocuments'
 import { apiFetch } from '@/lib/api'
+import {
+  buildUploadPreflight,
+  runWithConcurrency,
+  type DirectoryMapping,
+  type UploadCandidate,
+  type UploadPreflightItem,
+} from '@/lib/upload-batch'
 import { toast } from 'sonner'
 import { KBSidenav } from '@/components/kb/KBSidenav'
 import { FilesGrid } from '@/components/kb/FilesGrid'
 import { GraphViewer } from '@/components/kb/GraphViewer'
 import { SelectionActionBar } from '@/components/kb/SelectionActionBar'
+import { UploadBatchPanel } from '@/components/kb/UploadBatchPanel'
+import { UploadPickerDialog } from '@/components/kb/UploadPickerDialog'
+import { UploadPreflightDialog } from '@/components/kb/UploadPreflightDialog'
 import { WikiContent } from '@/components/wiki/WikiContent'
 import type { DocumentListItem, WikiNode } from '@/lib/types'
 import type { ViewMode } from '@/app/(dashboard)/wikis/[slug]/[[...path]]/page'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8010'
+const UPLOAD_ACCEPT = '.md,.txt,.csv,.pdf,.pptx,.ppt,.docx,.doc,.xlsx,.xls,.png,.jpg,.jpeg,.webp,.gif'
 
 
 function buildTreeFromDocs(docs: DocumentListItem[]): WikiNode[] {
@@ -122,7 +133,9 @@ export function KBDetail({ kbId, kbSlug, kbName, viewMode, routeFilesPath }: Pro
   const { documents, setDocuments, loading } = useKBDocuments(kbId)
 
   // ─── Upload tracking (global progress panel) ─────────────────
+  const addUploadBatch = useUploadStore((s) => s.addBatch)
   const addUpload = useUploadStore((s) => s.addUpload)
+  const markUploadUploading = useUploadStore((s) => s.markUploading)
   const setUploadProgress = useUploadStore((s) => s.setProgress)
   const markUploadProcessing = useUploadStore((s) => s.markProcessing)
   const markUploadFailed = useUploadStore((s) => s.markFailed)
@@ -668,108 +681,139 @@ export function KBDetail({ kbId, kbSlug, kbName, viewMode, routeFilesPath }: Pro
 
   // ─── File upload ─────────────────────────────────────────────
   const uploadPathRef = React.useRef('/')
+  const [uploadPickerOpen, setUploadPickerOpen] = React.useState(false)
+  const [directorySelectionSupported, setDirectorySelectionSupported] = React.useState(false)
+  const [directoryMapping, setDirectoryMapping] = React.useState<DirectoryMapping>('preserve')
+  const [pendingUpload, setPendingUpload] = React.useState<{
+    candidates: UploadCandidate[]
+    targetPath: string
+    directory: boolean
+  } | null>(null)
+
+  React.useEffect(() => {
+    setDirectorySelectionSupported('webkitdirectory' in document.createElement('input'))
+  }, [])
+
   const handleUploadClick = (targetPath: string = '/') => {
     uploadPathRef.current = targetPath
+    setUploadPickerOpen(true)
+  }
+
+  const reviewFiles = React.useCallback((files: File[], targetPath: string = '/', directory = false) => {
+    if (files.length === 0) return
+    setDirectoryMapping('preserve')
+    setPendingUpload({
+      candidates: files.map((file) => ({ file, relativePath: file.webkitRelativePath || file.name })),
+      targetPath,
+      directory,
+    })
+  }, [])
+
+  const openSystemPicker = (directory: boolean) => {
+    setUploadPickerOpen(false)
+    if (directory && !directorySelectionSupported) {
+      toast.info('此瀏覽器無法選擇資料夾，請改用多檔案上傳。')
+      return
+    }
     const input = document.createElement('input')
     input.type = 'file'
-    input.accept = '.md,.txt,.pdf,.pptx,.ppt,.docx,.doc,.png,.jpg,.jpeg,.webp,.gif,.svg,.xlsx,.xls,.csv,.html,.htm'
+    input.accept = UPLOAD_ACCEPT
     input.multiple = true
-    input.onchange = () => { if (input.files) uploadFiles(Array.from(input.files), uploadPathRef.current) }
+    if (directory) input.setAttribute('webkitdirectory', '')
+    input.onchange = () => {
+      if (input.files) reviewFiles(Array.from(input.files), uploadPathRef.current, directory)
+    }
     input.click()
   }
 
-  const tusUploadFile = React.useCallback((file: File, targetPath: string = '/'): Promise<void> => {
-    const t = getToken()
-    if (!t) return Promise.reject(new Error('Not authenticated'))
-    const uploadId = crypto.randomUUID()
-    addUpload({ id: uploadId, filename: file.name, kbId, kbSlug, path: targetPath })
-    return new Promise((resolve, reject) => {
-      const upload = new tus.Upload(file, {
-        endpoint: `${API_URL}/v1/files`,
-        retryDelays: [0, 1000, 3000, 5000],
-        // Our TUS reads {filename, kb}; a target path isn't carried yet (files land at root).
-        metadata: { filename: file.name, kb: kbSlug },
-        headers: { Authorization: `Bearer ${t}` },
-        onProgress: (sent, total) => setUploadProgress(uploadId, total > 0 ? sent / total : 0),
-        onError: (error) => { markUploadFailed(uploadId); reject(error) },
-        onSuccess: () => { markUploadProcessing(uploadId); resolve() },
-      })
-      upload.start()
-    })
-  }, [kbId, kbSlug, addUpload, setUploadProgress, markUploadProcessing, markUploadFailed])
+  const currentPreflight = React.useMemo(
+    () => pendingUpload
+      ? buildUploadPreflight(
+          pendingUpload.candidates,
+          documents,
+          pendingUpload.targetPath,
+          directoryMapping,
+          pendingUpload.directory,
+        )
+      : null,
+    [pendingUpload, documents, directoryMapping],
+  )
 
-  const uploadFiles = React.useCallback((files: File[], targetPath: string = '/') => {
+  const tusUploadFile = React.useCallback((uploadId: string, item: UploadPreflightItem): Promise<void> => {
     const t = getToken()
-    if (!t || !userId) return
-
-    // Client-side duplicate check — documents are already loaded
-    const existingNames = new Set(
-      documents
-        .filter((d) => d.path === targetPath && !d.archived)
-        .map((d) => d.filename.toLowerCase()),
-    )
-    const duplicates = files.filter((f) => existingNames.has(f.name.toLowerCase()))
-    if (duplicates.length > 0) {
-      const names = duplicates.map((f) => f.name).join(', ')
-      toast.error(`Already exists: ${names}`)
-      if (duplicates.length === files.length) return
-      files = files.filter((f) => !existingNames.has(f.name.toLowerCase()))
+    if (!t) {
+      markUploadFailed(uploadId, 'Not authenticated')
+      return Promise.resolve()
     }
+    markUploadUploading(uploadId)
+    return new Promise((resolve) => {
+      try {
+        const upload = new tus.Upload(item.file, {
+          endpoint: `${API_URL}/v1/files`,
+          retryDelays: [0, 1000, 3000, 5000],
+          metadata: { filename: item.filename, kb: kbSlug, path: item.destinationPath },
+          headers: { Authorization: `Bearer ${t}` },
+          onProgress: (sent, total) => setUploadProgress(uploadId, total > 0 ? sent / total : 0),
+          onError: (error) => { markUploadFailed(uploadId, error.message); resolve() },
+          onSuccess: () => { markUploadProcessing(uploadId); resolve() },
+        })
+        upload.start()
+      } catch (error) {
+        markUploadFailed(uploadId, error instanceof Error ? error.message : 'Upload failed')
+        resolve()
+      }
+    })
+  }, [kbSlug, markUploadUploading, setUploadProgress, markUploadProcessing, markUploadFailed])
 
-    const uploads = files.map(async (file) => {
-      const ext = file.name.split('.').pop()?.toLowerCase()
-      if (ext === 'md' || ext === 'txt') {
-        const content = await file.text()
-        const title = file.name.replace(/\.(md|txt)$/i, '')
-        try {
-          const data = await apiFetch<DocumentListItem>(`/v1/knowledge-bases/${kbId}/documents/note`, t, {
-            method: 'POST',
-            body: JSON.stringify({ filename: file.name, title, content, path: targetPath }),
-          })
-          setDocuments((prev) => [data, ...prev])
-        } catch { toast.error(`Failed to import ${file.name}`) }
-      } else {
-        const supportedTypes = new Set(['pdf', 'pptx', 'ppt', 'docx', 'doc', 'png', 'jpg', 'jpeg', 'webp', 'gif', 'xlsx', 'xls', 'csv', 'html', 'htm'])
-        if (ext && supportedTypes.has(ext)) {
-          await tusUploadFile(file, targetPath)
-        } else {
-          toast.info(`${ext} files not yet supported`)
-        }
-      }
+  const startPendingUpload = React.useCallback(() => {
+    const t = getToken()
+    if (!t || !userId || !currentPreflight) return
+    const eligible = currentPreflight.items.filter((item) => item.reason === null)
+    const batchId = crypto.randomUUID()
+    addUploadBatch({
+      id: batchId,
+      kbId,
+      totalFiles: currentPreflight.summary.total,
+      eligibleFiles: eligible.length,
+      totalBytes: eligible.reduce((sum, item) => sum + item.file.size, 0),
+      exclusions: currentPreflight.items.flatMap((item) => item.reason
+        ? [{ filename: item.filename, relativePath: item.relativePath, reason: item.reason }]
+        : []),
     })
-    Promise.all(uploads).then(() => {
-      const textFiles = files.filter((f) => /\.(md|txt)$/i.test(f.name))
-      if (textFiles.length > 0) toast.success(`Imported ${textFiles.length} file${textFiles.length > 1 ? 's' : ''}`)
-      // Navigate to files view after first upload
-      if (sourceDocs.length === 0) {
-        setActiveView('files')
-        navigateToView('files')
-      }
+    const queued = eligible.map((item) => {
+      const id = crypto.randomUUID()
+      addUpload({
+        id,
+        batchId,
+        filename: item.filename,
+        kbId,
+        kbSlug,
+        path: item.destinationPath,
+        size: item.file.size,
+      })
+      return { id, item }
     })
-  }, [kbId, kbSlug, userId, tusUploadFile, documents, sourceDocs.length, navigateToView, addUpload, markUploadProcessing, markUploadFailed])
+    setPendingUpload(null)
+    void runWithConcurrency(queued, 3, ({ id, item }) => tusUploadFile(id, item))
+    if (sourceDocs.length === 0 && queued.length > 0) {
+      setActiveView('files')
+      navigateToView('files')
+    }
+  }, [
+    currentPreflight,
+    userId,
+    addUploadBatch,
+    addUpload,
+    kbId,
+    kbSlug,
+    tusUploadFile,
+    sourceDocs.length,
+    navigateToView,
+  ])
 
   React.useEffect(() => {
     reconcileUploads(kbId, documents)
   }, [kbId, documents, processingUploads, reconcileUploads])
-
-  // Upload hints: one toast per upload, updated in place as it moves
-  // uploading → processing → ready/failed (driven by the WebSocket-fed store).
-  const uploadItems = useUploadStore((s) => s.items)
-  const uploadPhaseRef = React.useRef<Map<string, string>>(new Map())
-  React.useEffect(() => {
-    for (const it of uploadItems) {
-      if (uploadPhaseRef.current.get(it.id) === it.phase) continue
-      uploadPhaseRef.current.set(it.id, it.phase)
-      const name = it.filename
-      if (it.phase === 'uploading') toast.loading(`上傳中：${name}`, { id: it.id })
-      else if (it.phase === 'processing') toast.loading(`已上傳，處理中：${name}`, { id: it.id })
-      else if (it.phase === 'ready') toast.success(`處理完成：${name}`, { id: it.id })
-      else if (it.phase === 'failed') toast.error(`處理失敗：${name}${it.error ? ` — ${it.error}` : ''}`, { id: it.id })
-    }
-    for (const id of Array.from(uploadPhaseRef.current.keys())) {
-      if (!uploadItems.some((x) => x.id === id)) uploadPhaseRef.current.delete(id)
-    }
-  }, [uploadItems])
 
   React.useEffect(() => {
     if (!openRequest || openRequest.kbId !== kbId) return
@@ -811,7 +855,7 @@ export function KBDetail({ kbId, kbSlug, kbName, viewMode, routeFilesPath }: Pro
     dragCounterRef.current = 0
     setFileDragOver(false)
     const files = Array.from(e.dataTransfer.files)
-    if (files.length > 0) uploadFiles(files)
+    if (files.length > 0) reviewFiles(files)
   }
 
   // ─── FilesGrid URL-sync callbacks ────────────────────────────
@@ -936,7 +980,7 @@ export function KBDetail({ kbId, kbSlug, kbName, viewMode, routeFilesPath }: Pro
                   onCreateNote={handleCreateNote}
                   onCreateFolder={handleCreateFolder}
                   onMoveDocument={handleMoveDocument}
-                  onUploadFiles={uploadFiles}
+                  onUploadFiles={reviewFiles}
                   initialDocId={activeSourceDocId}
                   initialPage={filesInitialPage}
                   initialPath={routeFilesPath}
@@ -1019,6 +1063,26 @@ export function KBDetail({ kbId, kbSlug, kbName, viewMode, routeFilesPath }: Pro
           </AnimatePresence>
         </div>
       </div>
+
+      <UploadPickerDialog
+        open={uploadPickerOpen}
+        directorySupported={directorySelectionSupported}
+        onSelectFiles={() => openSystemPicker(false)}
+        onSelectFolder={() => openSystemPicker(true)}
+        onCancel={() => setUploadPickerOpen(false)}
+      />
+      {pendingUpload && currentPreflight && (
+        <UploadPreflightDialog
+          open
+          directory={pendingUpload.directory}
+          mapping={directoryMapping}
+          preflight={currentPreflight}
+          onMappingChange={setDirectoryMapping}
+          onCancel={() => setPendingUpload(null)}
+          onConfirm={startPendingUpload}
+        />
+      )}
+      <UploadBatchPanel kbId={kbId} />
 
       <SelectionActionBar
         count={selectedIds.size}

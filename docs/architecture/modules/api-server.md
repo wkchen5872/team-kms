@@ -61,8 +61,8 @@ timestamp: 2025-07-02T00:00:00Z
 ### `jobs.ts` — 單執行緒解析佇列
 - 全域 queue + draining flag，`enqueue(docId)` 加入佇列並非同步觸發 drain。
 - `recoverStuckJobs()`：服務啟動時把狀態卡在 `pending`/`processing` 的文件重新排入佇列
-  （崩潰復原）；注意此函式可能早於 `apps/converter` 就緒前執行——一般 UI 上傳走同步路徑，
-  無此競態；僅重啟後的堆積任務會受影響。
+  （崩潰復原）；注意此函式可能早於 `apps/converter` 就緒前執行，重啟後的堆積任務可能
+  暫時失敗，仍由文件狀態留下可重試紀錄。
 - `extractionProcessor()`：對文件的 S3 來源做 presign → 呼叫 converter `extract()` →
   finalize 文件（寫入分頁與 chunk）。
 
@@ -73,10 +73,14 @@ timestamp: 2025-07-02T00:00:00Z
   relay 給對應使用者的 WebSocket 連線。
 
 ### `tus.ts` — TUS 1.0 續傳協議
-- Upload 介面：`{ id, offset, length, filename, fileType, userId, data }`（暫存於記憶體，
-  上限 200MB）。
+- 建立 metadata：必填 `{filename, kb}`，可帶 `path`；`path` 省略時為 `/`，API 會正規化
+  成 `/folder/` 形式並拒絕相對路徑、`..`、`.`、空路徑段、反斜線與 null byte。
+- Upload 介面：`{ id, offset, length, filename, fileType, kbSlug, userId, dirPath, data }`
+  （暫存於記憶體，單檔上限 200MB）。
 - 函式：`createUpload()`、`getUpload()`、`appendChunk()`、`deleteUpload()`、
-  `validateSignature()`、`decodeMetadata()`。
+  `validateSignature()`、`decodeMetadata()`、`normalizeUploadPath()`。
+- TUS 完成後把 `dirPath` 傳給 `ingestAsync()`，並以「目的路徑＋檔名」判斷衝突；不同
+  路徑或檔名即使 bytes 相同仍各自建立 source，避免資料室文件被內容雜湊靜默合併。
 
 ### `converter-client.ts`
 - `ConverterClient` 介面：`extract(sourceUrl, ext) → PageContent[]`（`PageContent` 含
@@ -94,11 +98,11 @@ timestamp: 2025-07-02T00:00:00Z
 兩個進入點:**`ingestSource`（同步）** 供 multipart `POST /upload`；
 **`ingestAsync`（非同步）** 供 TUS `/v1/files`——只做 dedup + 建 pending 文件 + 上傳 S3,
 然後 `enqueue(docId)` 交給單執行緒 jobs 佇列(一次一份),**上傳立即返回、永不撞 converter 併發上限**,
-失敗由佇列標記 `documents.status='failed'`。text 檔(md/txt)兩者都直接寫入 ready。以下為抽取邏輯（兩者共用）:
+失敗由佇列標記 `documents.status='failed'`。text 檔(md/txt/csv)兩者都直接寫入 ready。以下為抽取邏輯（兩者共用）:
 ```
 輸入: { kbId, filename, fileType, bytes, ... }，deps 可帶 ocr?: OcrProvider|null
 
-若 fileType ∈ {md, txt}:
+若 fileType ∈ {md, txt, csv}:
   → fs.createDocument()（直接寫入，status='ready'）→ chunkText()
 
 否則若 fileType ∈ {png,jpg,jpeg,webp,gif}（直接上傳的圖片）:

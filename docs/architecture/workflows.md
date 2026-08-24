@@ -135,9 +135,12 @@ graph LR
 
 ## 流程一：檔案上傳 → 解析 → 索引
 
-**文字說明**：使用者在 `/wikis/:slug` 選擇檔案上傳，`apps/api`（`ingest.ts`）依 `fileType` 分三支：
+**文字說明**：使用者在 `/wikis/:slug` 選擇多個檔案或資料夾，前端先決定保留相對目錄或
+攤平、排除不支援格式與「目的路徑＋檔名」衝突，再以最多三筆並行的 TUS 上傳送出。
+每檔 metadata 帶 `{filename, kb, path}`；API 正規化並驗證 path，完成後由 `ingest.ts`
+依 `fileType` 分三支：
 
-- **純文字 / Markdown**（`md`/`txt`）：直接分塊寫入索引，**不進 Storage**。
+- **純文字 / Markdown / CSV**（`md`/`txt`/`csv`）：直接分塊寫入索引，**不進 Storage**。
 - **圖片**（`png`/`jpg`/`jpeg`/`webp`/`gif`）：**跳過 converter**——建 `pending` 文件、上傳原始圖到
   Storage，（可選）對圖跑 OCR 抽文字，`finalizeImageDocument()` 收斂 `ready`（有 OCR 文字則入
   `content` + chunks，`document_raw.parser` 記 `ocr`／否則 `none`）。修好了原本圖片被當 binary
@@ -160,16 +163,18 @@ sequenceDiagram
     participant Conv as apps/converter
     participant DB as PostgreSQL
 
-    Web->>API: POST /v1/knowledge-bases/:slug/upload (multipart)
-    API->>API: 依 fileType 分流（TEXT / IMAGE / binary）
+    Web->>Web: 預檢路徑、格式、衝突<br/>固定最多三筆同時傳輸
+    Web->>API: TUS /v1/files<br/>metadata={filename,kb,path}
+    API->>API: normalizeUploadPath()<br/>TUS 完成後 ingestAsync()
 
-    alt 純文字 / Markdown (md, txt)
+    alt 純文字 / Markdown / CSV (md, txt, csv)
         API->>DB: fs.createDocument() (status='ready')
         API->>API: chunkText()
         API->>DB: INSERT document_chunks
     else 圖片 (png/jpg/jpeg/webp/gif) — 跳過 converter
         API->>DB: fs.createPendingDocument() (status='pending')
         API->>S3: uploadBytes(userId/docId/source.ext)
+        API->>API: enqueue(docId)
         opt OCR_PROVIDER != none
             API->>API: ocrImageBytes()（失敗→降級，回 undefined）
         end
@@ -177,6 +182,7 @@ sequenceDiagram
     else 二進位 (PDF/Office)
         API->>DB: fs.createPendingDocument() (status='pending')
         API->>S3: uploadBytes(userId/docId/source.ext)
+        API->>API: enqueue(docId)
         API->>Conv: POST /extract (presigned URL, Bearer)
         Conv->>S3: 下載來源檔案
         opt Office 檔
@@ -197,7 +203,7 @@ sequenceDiagram
     DB->>DB: trigger notify_document_change()
     DB-->>API: NOTIFY document_changes (LISTEN)
     API-->>Web: WebSocket push (document_changes 事件)
-    Web->>Web: 更新文件清單 UI
+    Web->>Web: 對帳逐檔狀態並更新批次進度卡
 ```
 
 ---

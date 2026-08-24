@@ -245,7 +245,7 @@ describe.skipIf(!SUPABASE_URL || !SERVICE)("REST API", () => {
     expect(after.some((d) => d.filename === "b.md")).toBe(true);
   });
 
-  it("uploads a markdown file and reads its content", async () => {
+  it("uploads CSV into the requested folder and reads its content", async () => {
     const kb = (await (
       await app.request("/v1/knowledge-bases", {
         method: "POST",
@@ -255,14 +255,30 @@ describe.skipIf(!SUPABASE_URL || !SERVICE)("REST API", () => {
     ).json()) as { slug: string };
 
     const form = new FormData();
-    form.append("file", new File(["The grindelwald metric trends upward. ".repeat(6)], "note.md", { type: "text/markdown" }));
+    form.append("file", new File(["month,revenue\n2026-01,12345\n"], "financial-summary.csv", { type: "text/csv" }));
+    form.append("path", "/1.2 Binding Proposal Stage Transaction Documents/");
     const up = await app.request(`/v1/knowledge-bases/${kb.slug}/upload`, { method: "POST", headers: authHeader(), body: form });
     expect(up.status).toBe(201);
-    const doc = (await up.json()) as { id: string };
+    const doc = (await up.json()) as { id: string; path: string };
+    expect(doc.path).toBe("/1.2 Binding Proposal Stage Transaction Documents/");
 
     const content = (await (await app.request(`/v1/documents/${doc.id}/content`, { headers: authHeader() })).json()) as {
       content: string;
     };
-    expect(content.content).toContain("grindelwald");
+    expect(content.content).toContain("revenue");
+
+    const duplicateForm = new FormData();
+    duplicateForm.append("file", new File(["month,revenue\n2026-01,12345\n"], "financial-summary-copy.csv", { type: "text/csv" }));
+    duplicateForm.append("path", "/Project Indexes/");
+    duplicateForm.append("deduplicate", "false");
+    const duplicate = await app.request(`/v1/knowledge-bases/${kb.slug}/upload`, {
+      method: "POST",
+      headers: authHeader(),
+      body: duplicateForm,
+    });
+    expect(duplicate.status).toBe(201);
+    const duplicateDoc = (await duplicate.json()) as { id: string; path: string };
+    expect(duplicateDoc.id).not.toBe(doc.id);
+    expect(duplicateDoc.path).toBe("/Project Indexes/");
   });
 });

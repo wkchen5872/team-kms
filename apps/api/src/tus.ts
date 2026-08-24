@@ -15,6 +15,7 @@ export interface Upload {
   fileType: string;
   kbSlug: string;
   userId: string;
+  dirPath: string;
   data: Buffer;
   docId?: string;
 }
@@ -41,6 +42,7 @@ export function createUpload(input: {
   filename: string;
   kbSlug: string;
   userId: string;
+  dirPath?: string;
 }): Upload {
   if (!Number.isFinite(input.length) || input.length < 0) throw new Error("invalid Upload-Length");
   if (input.length > MAX_UPLOAD_BYTES) throw new Error(`exceeds ${MAX_UPLOAD_BYTES} bytes`);
@@ -52,10 +54,26 @@ export function createUpload(input: {
     fileType: (input.filename.split(".").pop() ?? "").toLowerCase(),
     kbSlug: input.kbSlug,
     userId: input.userId,
+    dirPath: normalizeUploadPath(input.dirPath),
     data: Buffer.alloc(0),
   };
   uploads.set(up.id, up);
   return up;
+}
+
+/** Normalize a knowledge-base directory path and reject ambiguous/traversal input. */
+export function normalizeUploadPath(value?: string): string {
+  if (value == null || value === "") return "/";
+  if (!value.startsWith("/") || value.includes("\\") || value.includes("\0")) {
+    throw new Error("invalid upload path");
+  }
+  if (value === "/") return "/";
+  const inner = value.endsWith("/") ? value.slice(1, -1) : value.slice(1);
+  const segments = inner.split("/");
+  if (segments.some((segment) => segment === "" || segment === "." || segment === "..")) {
+    throw new Error("invalid upload path");
+  }
+  return `/${segments.join("/")}/`;
 }
 
 export function getUpload(id: string): Upload | undefined {

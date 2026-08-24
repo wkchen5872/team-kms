@@ -347,6 +347,8 @@ app.post("/v1/knowledge-bases/:slug/upload", async (c) => {
   const body = await c.req.parseBody();
   const file = body.file;
   if (!(file instanceof File)) return c.json({ error: "file is required (multipart)" }, 400);
+  const dirPath = typeof body.path === "string" && body.path.trim() ? body.path.trim() : "/";
+  const deduplicate = body.deduplicate !== "false";
   const fileType = (file.name.split(".").pop() ?? "").toLowerCase();
   const bytes = Buffer.from(await file.arrayBuffer());
 
@@ -355,6 +357,8 @@ app.post("/v1/knowledge-bases/:slug/upload", async (c) => {
     filename: file.name,
     fileType,
     bytes,
+    dirPath,
+    deduplicate,
   });
   return c.json(doc, 201);
 });
@@ -372,12 +376,19 @@ app.post("/v1/files", async (c) => {
   const kb = await c.get("fs").resolveKb(kbSlug);
   if (!kb) return c.json({ error: "Knowledge base not found" }, 404);
   try {
-    const up = createUpload({ length: Number(c.req.header("upload-length")), filename, kbSlug, userId: c.get("userId") });
+    const up = createUpload({
+      length: Number(c.req.header("upload-length")),
+      filename,
+      kbSlug,
+      userId: c.get("userId"),
+      dirPath: meta.path,
+    });
     c.header("Location", `/v1/files/${up.id}`);
     c.header("Tus-Resumable", TUS_VERSION);
     return c.body(null, 201);
   } catch (err) {
-    return c.json({ error: (err as Error).message }, 413);
+    const message = (err as Error).message;
+    return c.json({ error: message }, message.startsWith("exceeds ") ? 413 : 400);
   }
 });
 
@@ -418,12 +429,23 @@ app.patch("/v1/files/:id", async (c) => {
     if (!kb) return c.json({ error: "Knowledge base not found" }, 404);
     // Async: upload + enqueue, return immediately. The single-threaded queue does
     // extraction/OCR one doc at a time, so uploads never saturate the converter.
-    const doc = await ingestAsync({ fs, s3: s3FromConfig() }, {
-      kbId: kb.id,
-      filename: up.filename,
-      fileType: up.fileType,
-      bytes: up.data,
-    });
+    let doc;
+    try {
+      doc = await ingestAsync({ fs, s3: s3FromConfig() }, {
+        kbId: kb.id,
+        filename: up.filename,
+        fileType: up.fileType,
+        bytes: up.data,
+        dirPath: up.dirPath,
+        deduplicate: false,
+      });
+    } catch (err) {
+      if (err instanceof DuplicateDocumentError || isUnique(err)) {
+        deleteUpload(id);
+        return c.json({ error: "A document already exists at that path" }, 409);
+      }
+      throw err;
+    }
     deleteUpload(id);
     c.header("X-Document-Id", doc.id);
     c.header("X-Document-Status", doc.status);

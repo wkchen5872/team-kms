@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { serviceExecute, closePool } from "@team-kms/shared";
 import { app } from "./index.js";
+import { createUpload, deleteUpload, normalizeUploadPath } from "./tus.js";
 
 const SUPABASE_URL = process.env.SUPABASE_URL ?? "";
 const ANON = process.env.SUPABASE_ANON_KEY ?? "";
@@ -12,7 +13,42 @@ let slug = "";
 const auth = () => ({ authorization: `Bearer ${token}` });
 const b64 = (s: string) => Buffer.from(s).toString("base64");
 
+describe("TUS upload paths", () => {
+  it("normalizes nested paths and defaults missing paths to root", () => {
+    expect(normalizeUploadPath("/finance/2026")).toBe("/finance/2026/");
+    expect(normalizeUploadPath("/finance/2026/")).toBe("/finance/2026/");
+    expect(normalizeUploadPath(undefined)).toBe("/");
+
+    const upload = createUpload({ length: 1, filename: "a.md", kbSlug: "kb", userId: "user" });
+    expect(upload.dirPath).toBe("/");
+    deleteUpload(upload.id);
+  });
+
+  it.each(["relative", "/a/../b/", "/a/./b/", "/a//b/", "/a\\b/", "/a\0b/"])(
+    "rejects invalid path %j",
+    (dirPath) => expect(() => normalizeUploadPath(dirPath)).toThrow("invalid upload path"),
+  );
+});
+
 describe.skipIf(!SUPABASE_URL || !SERVICE)("TUS resumable upload", () => {
+  async function uploadBytes(filename: string, bytes: Buffer, dirPath?: string) {
+    const metadata = [`filename ${b64(filename)}`, `kb ${b64(slug)}`];
+    if (dirPath) metadata.push(`path ${b64(dirPath)}`);
+    const create = await app.request("/v1/files", {
+      method: "POST",
+      headers: { ...auth(), "upload-length": String(bytes.length), "upload-metadata": metadata.join(",") },
+    });
+    expect(create.status).toBe(201);
+    return app.request(create.headers.get("location")!, {
+      method: "PATCH",
+      headers: { ...auth(), "upload-offset": "0" },
+      body: bytes,
+    });
+  }
+
+  const uploadText = (filename: string, content: string, dirPath?: string) =>
+    uploadBytes(filename, Buffer.from(content), dirPath);
+
   beforeAll(async () => {
     const u = await fetch(`${SUPABASE_URL}/auth/v1/admin/users`, {
       method: "POST",
@@ -90,5 +126,54 @@ describe.skipIf(!SUPABASE_URL || !SERVICE)("TUS resumable upload", () => {
     const loc = create.headers.get("location")!;
     const patch = await app.request(loc, { method: "PATCH", headers: { ...auth(), "upload-offset": "0" }, body: bytes });
     expect(patch.status).toBe(415);
+  });
+
+  it("keeps nested paths for markdown, text, and CSV source uploads", async () => {
+    const dirPath = "/Financial Information/2026/";
+    for (const [filename, content] of [
+      ["nested.md", "markdown source"],
+      ["nested.txt", "text source"],
+      ["nested.csv", "month,revenue\n2026-01,12345\n"],
+    ] as const) {
+      const response = await uploadText(filename, content, dirPath);
+      expect(response.status).toBe(204);
+      expect(response.headers.get("x-document-status")).toBe("ready");
+    }
+
+    const documents = (await (
+      await app.request(`/v1/knowledge-bases/${slug}/documents`, { headers: auth() })
+    ).json()) as Array<{ filename: string; path: string; kind: string; status: string }>;
+    for (const filename of ["nested.md", "nested.txt", "nested.csv"]) {
+      expect(documents).toContainEqual(expect.objectContaining({ filename, path: dirPath, kind: "raw", status: "ready" }));
+    }
+  });
+
+  it("preserves identical bytes at distinct destinations and rejects a destination conflict", async () => {
+    const content = "month,revenue\n2026-01,12345\n";
+    const first = await uploadText("copy.csv", content, "/Copies/A/");
+    const second = await uploadText("copy.csv", content, "/Copies/B/");
+    expect(first.status).toBe(204);
+    expect(second.status).toBe(204);
+    expect(second.headers.get("x-document-id")).not.toBe(first.headers.get("x-document-id"));
+
+    const conflict = await uploadText("copy.csv", "different bytes", "/Copies/A/");
+    expect(conflict.status).toBe(409);
+    expect(await conflict.json()).toEqual({ error: "A document already exists at that path" });
+  });
+
+  it("imports a mixed preserved directory batch with expected paths and statuses", async () => {
+    expect((await uploadText("overview.md", "project overview", "/Mixed/Docs/")).status).toBe(204);
+    expect((await uploadText("data.csv", "name,value\nsolar,1\n", "/Mixed/Data/")).status).toBe(204);
+    const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+    const image = await uploadBytes("diagram.png", png, "/Mixed/Images/");
+    expect(image.status).toBe(204);
+    expect(image.headers.get("x-document-status")).toBe("pending");
+
+    const documents = (await (
+      await app.request(`/v1/knowledge-bases/${slug}/documents`, { headers: auth() })
+    ).json()) as Array<{ filename: string; path: string; status: string }>;
+    expect(documents).toContainEqual(expect.objectContaining({ filename: "overview.md", path: "/Mixed/Docs/", status: "ready" }));
+    expect(documents).toContainEqual(expect.objectContaining({ filename: "data.csv", path: "/Mixed/Data/", status: "ready" }));
+    expect(documents).toContainEqual(expect.objectContaining({ filename: "diagram.png", path: "/Mixed/Images/", status: "pending" }));
   });
 });

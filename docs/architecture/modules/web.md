@@ -38,6 +38,7 @@ timestamp: 2025-07-02T00:00:00Z
 | 區塊 | 元件 | 職責 |
 |---|---|---|
 | `kb/` | `KBDetail` | 工作頁殼：整合 sidenav + 內容區，管理 files/wiki/graph view 切換與 URL 同步、文件 CRUD（note/folder/move/rename/delete）、上傳 |
+| `kb/` | `UploadPickerDialog` / `UploadPreflightDialog` / `UploadBatchPanel` | 選擇多檔或資料夾、保留/攤平路徑預檢、格式與衝突排除、單一批次進度及失敗明細 |
 | `kb/` | `KBSidenav` | 左側欄：來源清單、wiki file tree（巢狀展開 + active 高亮）、上傳、底部帳號選單 |
 | `kb/` | `FilesGrid` + `DocViewers` | 檔案網格（依 `file_type` 顯示 lucide icon、name/date/type 排序、搜尋、資料夾）＋各型檢視器（PDF `<embed>`、圖片、office/試算表以抽取內文就地預覽（docx/doc/pptx/ppt/xlsx/xls/csv 走 `ContentViewer`，避免非 PDF 檔塞進 PDF embed 而誤觸下載）、note textarea、processing/failed 狀態）。多選（hover checkbox + cmd/shift-click）驅動 `SelectionActionBar` 批次刪除 / re-extract；資料夾右鍵可改名/刪除；可萃取檔右鍵可 Re-extract（`POST /re-extract`） |
 | `kb/` | `GraphViewer` | `react-force-graph-2d`（`ssr:false`）力導向圖，**點節點導航**（`onNodeClick`，path 為 null 不崩） |
@@ -56,7 +57,9 @@ timestamp: 2025-07-02T00:00:00Z
   非 2xx throw `ApiError`。讀 `NEXT_PUBLIC_API_URL`（預設 `http://localhost:8010`）。
   另有 `getDocumentsWsUrl(kbId, token)` → `…/v1/ws/kb/:kbId?token=`。
 - **`stores/`**（zustand）：`useUserStore`（session token）、`useKBStore`（知識庫列表）、
-  `useUploadStore`（上傳進度）。
+  `useUploadStore`（批次與逐檔 queued/uploading/processing/ready/failed 狀態、bytes 進度）。
+- **`lib/upload-batch.ts`**：支援格式、保留/攤平路徑映射、case-insensitive 衝突預檢與
+  固定併發 worker pool。
 - **`hooks/useKBDocuments.ts`**：載入文件清單 + 訂閱 WebSocket 即時更新。
 - **`lib/supabase.ts`**：以 `NEXT_PUBLIC_SUPABASE_URL` + `_ANON_KEY` 初始化 client
   （`persistSession` + `autoRefreshToken`），全域 singleton。
@@ -72,9 +75,15 @@ timestamp: 2025-07-02T00:00:00Z
 
 ## 多檔上傳流程（TUS）
 
-- 走 **TUS 1.0 續傳協議**（`tus-js-client`）打 `/v1/files`，metadata 帶 `{filename, kb: slug}`。
-- 上傳完成後端非同步 ingest（解析佇列）；前端經 WebSocket 收到 `processing → ready/failed` 更新。
-- 上傳暫落知識庫根目錄（metadata 尚未帶 path）。
+- 「上傳 Sources」先選擇多個檔案或一個本機資料夾；資料夾模式預設保留選取根目錄內的
+  相對結構，也可攤平到目前 Team KMS 資料夾。最外層選取資料夾名稱不會額外建立。
+- 開始前統一預檢：列出總數、可上傳、不支援格式及目的地衝突；衝突檔不覆蓋、不改名，
+  只排除並保留於批次結果。
+- 所有支援來源（含 md/txt/csv）都走 **TUS 1.0**（`tus-js-client`）打 `/v1/files`，metadata
+  帶 `{filename, kb: slug, path}`，一次最多三筆傳輸，避免 TUS 記憶體 buffer 被大量檔案占滿。
+- 上傳完成後端非同步 ingest（解析佇列）；前端經 WebSocket 對帳
+  `processing → ready/failed`，並以一張批次卡呈現總進度、排除與失敗明細，不逐檔發 toast。
+- 瀏覽器不支援目錄選擇時，UI 會說明限制並保留一般多檔案選擇。
 
 ## 下載流程
 

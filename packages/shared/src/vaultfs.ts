@@ -253,7 +253,7 @@ export class PostgresVaultFS {
       if (resolvedKind === "raw") {
         await client.query("INSERT INTO document_raw (document_id, parser) VALUES ($1, $2)", [row.id, parser ?? null]);
       }
-      if (fileType === "md" || fileType === "txt") {
+      if (fileType === "md" || fileType === "txt" || fileType === "csv") {
         await storeChunksOnClient(client, row.id, this.userId, kbId, chunkText(content || ""));
       }
       await client.query("COMMIT");
@@ -306,7 +306,7 @@ export class PostgresVaultFS {
         file_type: string;
       }>(sql, args);
       const row = res.rows[0];
-      if (row && (row.file_type === "md" || row.file_type === "txt")) {
+      if (row && (row.file_type === "md" || row.file_type === "txt" || row.file_type === "csv")) {
         await storeChunksOnClient(client, row.id, this.userId, row.knowledge_base_id, chunkText(content || ""));
       }
       await client.query("COMMIT");
